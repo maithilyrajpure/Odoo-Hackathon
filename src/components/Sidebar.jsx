@@ -43,7 +43,7 @@ export default function Sidebar({ currentView, setCurrentView }) {
 
   return (
     <aside className="sidebar">
-      <div className="brand-section">
+      <div className="brand-section" onClick={() => setCurrentView('landing')} style={{ cursor: 'pointer' }} title="Go back to Landing Page">
         <Sparkles size={24} color="#2ecc71" />
         <div className="brand-name">Eco<span>Sphere</span></div>
       </div>
