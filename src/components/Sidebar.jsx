@@ -170,11 +170,20 @@ export default function Sidebar({ currentView, setCurrentView }) {
               fontFamily: 'var(--font-family)'
             }}
           >
-            {usersList.map(u => (
-              <option key={u.id} value={u.id} style={{ background: '#0c0f0d', color: '#fff' }}>
-                {u.name} ({u.role})
-              </option>
-            ))}
+            {(() => {
+              const list = [...(usersList || [])];
+              if (!list.some(u => u.id === 'virtual-employee-1')) {
+                list.push({ id: 'virtual-employee-1', name: 'Karan Shah', role: 'Employee' });
+              }
+              if (!list.some(u => u.id === 'virtual-manager-1')) {
+                list.push({ id: 'virtual-manager-1', name: 'S. Nair', role: 'Manager' });
+              }
+              return list.map(u => (
+                <option key={u.id} value={u.id} style={{ background: '#0c0f0d', color: '#fff' }}>
+                  {u.name} ({u.role})
+                </option>
+              ));
+            })()}
           </select>
         </div>
 

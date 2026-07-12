@@ -330,10 +330,17 @@ export const ESGDataProvider = ({ children }) => {
   // Switch virtual profiles for local demo
   const switchUser = async (userId) => {
     try {
-      const selectedProfile = usersList.find(u => u.id === userId);
+      let selectedProfile = usersList.find(u => u.id === userId);
+      if (!selectedProfile) {
+        const mockProfiles = [
+          { id: 'virtual-employee-1', org_id: activeUser?.org_id, name: 'Karan Shah', role: 'Employee', xp: 3910, points: 210, badges_unlocked: ['Green Beginner'], department: 'Manufacturing' },
+          { id: 'virtual-manager-1', org_id: activeUser?.org_id, name: 'S. Nair', role: 'Manager', xp: 5200, points: 600, badges_unlocked: ['Sustainability Champion'], department: 'Logistics' }
+        ];
+        selectedProfile = mockProfiles.find(u => u.id === userId);
+      }
       if (selectedProfile) {
         setActiveUser(selectedProfile);
-        addNotification('info', `Switched active profile to ${selectedProfile.name} (${selectedProfile.role}).`);
+        await addNotification('info', `Switched active profile to ${selectedProfile.name} (${selectedProfile.role}).`);
       }
     } catch (err) {
       console.error(err);
