@@ -1,232 +1,339 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { supabase } from '../services/supabaseClient';
+import { authService } from '../services/authService';
+import { environmentalService } from '../services/environmentalService';
+import { socialService } from '../services/socialService';
+import { governanceService } from '../services/governanceService';
+import { gamificationService } from '../services/gamificationService';
+import { settingsService } from '../services/settingsService';
 
 export const ESGDataContext = createContext();
 
-// Predefined mock data for seeding the virtual database
-const initialDepartments = [
-  { id: '1', name: 'Manufacturing', code: 'MFC', head: 'S. Nair', parentDept: '—', employees: 134, status: 'Active' },
-  { id: '2', name: 'Logistics', code: 'LOC', head: 'R. Iyer', parentDept: 'Manufacturing', employees: 58, status: 'Active' },
-  { id: '3', name: 'Corporate', code: 'COF', head: 'A. Mehta', parentDept: '—', employees: 41, status: 'Active' },
-  { id: '4', name: 'Sales', code: 'SAL', head: 'M. Sharma', parentDept: 'Corporate', employees: 85, status: 'Active' },
-  { id: '5', name: 'R&D', code: 'RND', head: 'Dr. A. Patel', parentDept: '—', employees: 25, status: 'Active' },
-];
-
-const initialCategories = [
-  { id: '1', name: 'Carbon Accounting', type: 'Environmental', status: 'Active' },
-  { id: '2', name: 'Waste Management', type: 'Environmental', status: 'Active' },
-  { id: '3', name: 'CSR Activity', type: 'Social', status: 'Active' },
-  { id: '4', name: 'Sustainability Challenge', type: 'Social', status: 'Active' },
-  { id: '5', name: 'Governance Audits', type: 'Governance', status: 'Active' },
-  { id: '6', name: 'Corporate Policies', type: 'Governance', status: 'Active' },
-];
-
-const initialEmissionFactors = [
-  { id: '1', name: 'Grid Electricity', category: 'Electricity', co2PerUnit: 0.85, unit: 'kWh' },
-  { id: '2', name: 'Diesel fuel (Fleet)', category: 'Fleet Fuel', co2PerUnit: 2.68, unit: 'Liters' },
-  { id: '3', name: 'Natural Gas', category: 'Heating', co2PerUnit: 1.89, unit: 'm³' },
-  { id: '4', name: 'Air Travel (Short Haul)', category: 'Business Travel', co2PerUnit: 0.15, unit: 'km' },
-];
-
-const initialProducts = [
-  { id: '1', name: 'EcoPack Cardboard Box', carbonFootprint: 0.12, recyclability: 100, materialSource: 'Recycled Pulp', status: 'Active' },
-  { id: '2', name: 'Standard Plastic Shrink', carbonFootprint: 0.89, recyclability: 30, materialSource: 'Petroleum Base', status: 'Active' },
-  { id: '3', name: 'Biodegradable Packing Peanuts', carbonFootprint: 0.05, recyclability: 95, materialSource: 'Corn Starch', status: 'Active' },
-];
-
-const initialEnvironmentalGoals = [
-  { id: '1', name: 'Reduce Fleet Emissions', department: 'Logistics', targetCo2: 500, currentCo2: 350, deadline: '2026-12-31', status: 'Active' },
-  { id: '2', name: 'Cut Packaging Waste', department: 'Manufacturing', targetCo2: 120, currentCo2: 98, deadline: '2026-09-30', status: 'On Track' },
-  { id: '3', name: 'Office Energy Cut', department: 'Corporate', targetCo2: 80, currentCo2: 80, deadline: '2026-06-30', status: 'Completed' },
-];
-
-const initialPolicies = [
-  { id: '1', title: 'Anti-Corruption Policy', category: 'Ethics & Compliance', content: 'Our code of conduct requires strict compliance with global anti-bribery standards. No employee may offer, request, or receive bribes of any nature.', version: 'v2.1', effectiveDate: '2026-01-01', status: 'Published' },
-  { id: '2', title: 'Supplier Code of Conduct', category: 'Supply Chain', content: 'All suppliers must guarantee fair wages, safe working environments, and document zero usage of forced labor or child labor.', version: 'v1.4', effectiveDate: '2026-03-15', status: 'Published' },
-  { id: '3', title: 'Carbon Neutrality Roadmap', category: 'Environmental', content: 'EcoSphere commits to a 50% carbon reduction in Scope 1 and Scope 2 emissions by 2030, with net zero operations target by 2035.', version: 'v1.0', effectiveDate: '2026-05-01', status: 'Published' },
-];
-
-const initialBadges = [
-  { id: '1', name: 'Green Beginner', description: 'Awarded for completing your first sustainability challenge.', unlockRule: 'Complete 1 Challenge', icon: '🌱' },
-  { id: '2', name: 'Carbon Saver', description: 'Awarded for logging emissions reduction of 500kg or more.', unlockRule: 'Reduce 500kg CO2', icon: '🔋' },
-  { id: '3', name: 'Sustainability Champion', description: 'Awarded for earning more than 5,000 total XP.', unlockRule: 'Reach 5000 XP', icon: '🏆' },
-  { id: '4', name: 'Team Player', description: 'Awarded for participating in 3 or more CSR activities.', unlockRule: 'Participate in 3 CSR Activities', icon: '🤝' },
-];
-
-const initialRewards = [
-  { id: '1', name: 'Eco Coffee Mug', description: 'Double-walled stainless steel reusable coffee mug with EcoSphere branding.', pointsRequired: 50, stock: 8, status: 'Available' },
-  { id: '2', name: 'Tree Planting Certificate', description: 'We will plant a native tree in your name in the local forest reserve.', pointsRequired: 100, stock: 999, status: 'Available' },
-  { id: '3', name: 'Organic Cotton Tote', description: 'Spacious, heavy-duty organic cotton tote bag for sustainable shopping.', pointsRequired: 75, stock: 15, status: 'Available' },
-  { id: '4', name: 'Wellness Session Pass', description: 'Voucher for a 60-minute virtual yoga or mental wellness session.', pointsRequired: 200, stock: 3, status: 'Available' },
-];
-
-const initialCarbonTransactions = [
-  { id: '1', date: '2026-07-01', type: 'Fleet', quantity: 150, unit: 'Liters', emissionFactorName: 'Diesel fuel (Fleet)', co2Value: 402.0, status: 'Active', department: 'Logistics' },
-  { id: '2', date: '2026-07-03', type: 'Purchase', quantity: 2400, unit: 'kWh', emissionFactorName: 'Grid Electricity', co2Value: 2040.0, status: 'Active', department: 'Manufacturing' },
-  { id: '3', date: '2026-07-05', type: 'Manufacturing', quantity: 300, unit: 'm³', emissionFactorName: 'Natural Gas', co2Value: 567.0, status: 'Active', department: 'Manufacturing' },
-  { id: '4', date: '2026-07-08', type: 'Expenses', quantity: 800, unit: 'km', emissionFactorName: 'Air Travel (Short Haul)', co2Value: 120.0, status: 'Active', department: 'Sales' },
-];
-
-const initialCsrActivities = [
-  { id: '1', name: 'Tree Plantation Drive', description: 'Join the annual afforestation campaign in the northern suburbs to restore forest canopy.', points: 50, status: 'Active', evidenceRequired: true },
-  { id: '2', name: 'Blood Donation Camp', description: 'Support our quarterly blood drive hosted in partnership with Red Cross in the cafeteria.', points: 30, status: 'Active', evidenceRequired: true },
-  { id: '3', name: 'Beach Cleanup', description: 'Spend Saturday morning cleaning plastics and waste from the city shoreline.', points: 40, status: 'Active', evidenceRequired: false },
-  { id: '4', name: 'ESG Corporate Workshop', description: 'Participate in the compliance training and sustainable operational standards seminar.', points: 20, status: 'Active', evidenceRequired: false },
-];
-
-const initialEmployeeParticipations = [
-  { id: '1', employee: 'Aditi Rao', activityName: 'Tree Plantation Drive', proof: 'tree_planting_selfie.jpg', pointsEarned: 50, status: 'Pending', date: '2026-07-10', department: 'Manufacturing' },
-  { id: '2', employee: 'Karan Shah', activityName: 'ESG Corporate Workshop', proof: 'cert.pdf', pointsEarned: 20, status: 'Approved', date: '2026-07-08', department: 'Logistics' },
-  { id: '3', employee: 'Priya Sharma', activityName: 'Beach Cleanup', proof: 'none', pointsEarned: 40, status: 'Approved', date: '2026-07-09', department: 'Corporate' },
-];
-
-const initialChallenges = [
-  { id: '1', title: 'Sustainability Sprint', category: 'Carbon reduction', description: 'Cut your monthly operational carbon footprint by 10% through conscious energy consumption.', xp: 200, difficulty: 'Hard', evidenceRequired: true, deadline: '2026-07-20', status: 'Active' },
-  { id: '2', title: 'Recycle Challenge', category: 'Waste sorting', description: 'Properly categorize office waste. Share a short note showing how your team achieved zero-waste desk spaces.', xp: 80, difficulty: 'Easy', evidenceRequired: true, deadline: '2026-07-15', status: 'Active' },
-  { id: '3', title: 'Commute Green Week', category: 'Transport', description: 'Avoid single-passenger vehicles for your commute. Work from home, carpool, bike, or use transit.', xp: 120, difficulty: 'Medium', evidenceRequired: false, deadline: '2026-07-25', status: 'Draft' },
-];
-
-const initialChallengeParticipations = [
-  { id: '1', challengeTitle: 'Recycle Challenge', employee: 'Priya Sharma', progress: 100, proof: 'recycling_bin.jpg', status: 'Approved', xpAwarded: 80, date: '2026-07-11' },
-  { id: '2', challengeTitle: 'Sustainability Sprint', employee: 'Aditi Rao', progress: 60, proof: 'energy_log.xlsx', status: 'Under Review', xpAwarded: 0, date: '2026-07-12' },
-];
-
-const initialPolicyAcknowledgements = [
-  { id: '1', policyTitle: 'Anti-Corruption Policy', employee: 'Aditi Rao', date: '2026-06-15' },
-  { id: '2', policyTitle: 'Anti-Corruption Policy', employee: 'Karan Shah', date: '2026-06-16' },
-  { id: '3', policyTitle: 'Supplier Code of Conduct', employee: 'Aditi Rao', date: '2026-06-18' },
-];
-
-const initialAudits = [
-  { id: '1', title: 'Q2 Waste Audit', department: 'Manufacturing', auditor: 'S. Nair', date: '2026-06-12', findings: '3 minor compliance discrepancies in scrap segregation.', status: 'Completed' },
-  { id: '2', title: 'Vendor Compliance Check', department: 'Logistics', auditor: 'R. Iyer', date: '2026-07-01', findings: '1 unresolved vendor disclosure discrepancy.', status: 'Under Review' },
-];
-
-const initialComplianceIssues = [
-  { id: '1', auditTitle: 'Q2 Waste Audit', issue: 'Missing MSDS sheets', severity: 'High', department: 'Manufacturing', owner: 'Aditi Rao', dueDate: '2026-07-10', status: 'Open' },
-  { id: '2', auditTitle: 'Vendor Compliance Check', issue: 'Late vendor disclosure', severity: 'Medium', department: 'Logistics', owner: 'Karan Shah', dueDate: '2026-07-15', status: 'Resolved' },
-];
-
-const initialActiveUser = {
-  id: 'u1',
-  name: 'Aditi Rao',
-  role: 'Employee',
-  department: 'Manufacturing',
-  xp: 4820,
-  points: 380,
-  badges: ['Green Beginner', 'Team Player'],
-};
-
-const initialUsersList = [
-  { id: 'u1', name: 'Aditi Rao', role: 'Employee', department: 'Manufacturing', xp: 4820, points: 380, badges: ['Green Beginner', 'Team Player'] },
-  { id: 'u2', name: 'S. Nair', role: 'Manager', department: 'Manufacturing', xp: 5200, points: 600, badges: ['Sustainability Champion'] },
-  { id: 'u3', name: 'Karan Shah', role: 'Employee', department: 'Logistics', xp: 3910, points: 210, badges: ['Green Beginner'] },
-  { id: 'u4', name: 'R. Iyer', role: 'Manager', department: 'Logistics', xp: 4100, points: 350, badges: ['Team Player'] },
-];
-
 export const ESGDataProvider = ({ children }) => {
-  // Database States loaded from LocalStorage if they exist, else using mock seeds
-  const [departments, setDepartments] = useState(() => JSON.parse(localStorage.getItem('esg_departments')) || initialDepartments);
-  const [categories, setCategories] = useState(() => JSON.parse(localStorage.getItem('esg_categories')) || initialCategories);
-  const [emissionFactors, setEmissionFactors] = useState(() => JSON.parse(localStorage.getItem('esg_emissionFactors')) || initialEmissionFactors);
-  const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('esg_products')) || initialProducts);
-  const [environmentalGoals, setEnvironmentalGoals] = useState(() => JSON.parse(localStorage.getItem('esg_environmentalGoals')) || initialEnvironmentalGoals);
-  const [policies, setPolicies] = useState(() => JSON.parse(localStorage.getItem('esg_policies')) || initialPolicies);
-  const [badges, setBadges] = useState(() => JSON.parse(localStorage.getItem('esg_badges')) || initialBadges);
-  const [rewards, setRewards] = useState(() => JSON.parse(localStorage.getItem('esg_rewards')) || initialRewards);
-  const [carbonTransactions, setCarbonTransactions] = useState(() => JSON.parse(localStorage.getItem('esg_carbonTransactions')) || initialCarbonTransactions);
-  const [csrActivities, setCsrActivities] = useState(() => JSON.parse(localStorage.getItem('esg_csrActivities')) || initialCsrActivities);
-  const [employeeParticipations, setEmployeeParticipations] = useState(() => JSON.parse(localStorage.getItem('esg_employeeParticipations')) || initialEmployeeParticipations);
-  const [challenges, setChallenges] = useState(() => JSON.parse(localStorage.getItem('esg_challenges')) || initialChallenges);
-  const [challengeParticipations, setChallengeParticipations] = useState(() => JSON.parse(localStorage.getItem('esg_challengeParticipations')) || initialChallengeParticipations);
-  const [policyAcknowledgements, setPolicyAcknowledgements] = useState(() => JSON.parse(localStorage.getItem('esg_policyAcknowledgements')) || initialPolicyAcknowledgements);
-  const [audits, setAudits] = useState(() => JSON.parse(localStorage.getItem('esg_audits')) || initialAudits);
-  const [complianceIssues, setComplianceIssues] = useState(() => JSON.parse(localStorage.getItem('esg_complianceIssues')) || initialComplianceIssues);
-  const [activeUser, setActiveUser] = useState(() => JSON.parse(localStorage.getItem('esg_activeUser')) || initialActiveUser);
-  const [usersList, setUsersList] = useState(() => JSON.parse(localStorage.getItem('esg_usersList')) || initialUsersList);
-  const [notifications, setNotifications] = useState(() => JSON.parse(localStorage.getItem('esg_notifications')) || [
+  const [departments, setDepartments] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [emissionFactors, setEmissionFactors] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [environmentalGoals, setEnvironmentalGoals] = useState([]);
+  const [policies, setPolicies] = useState([]);
+  const [badges, setBadges] = useState([]);
+  const [rewards, setRewards] = useState([]);
+  const [carbonTransactions, setCarbonTransactions] = useState([]);
+  const [csrActivities, setCsrActivities] = useState([]);
+  const [employeeParticipations, setEmployeeParticipations] = useState([]);
+  const [challenges, setChallenges] = useState([]);
+  const [challengeParticipations, setChallengeParticipations] = useState([]);
+  const [policyAcknowledgements, setPolicyAcknowledgements] = useState([]);
+  const [audits, setAudits] = useState([]);
+  const [complianceIssues, setComplianceIssues] = useState([]);
+  const [activeUser, setActiveUser] = useState(null);
+  const [usersList, setUsersList] = useState([]);
+  const [notifications, setNotifications] = useState([
     { id: 1, type: 'info', message: 'Welcome to EcoSphere ESG Platform!', date: new Date().toLocaleDateString() }
   ]);
-
-  // System Configuration (Settings tab toggles)
-  const [settings, setSettings] = useState(() => JSON.parse(localStorage.getItem('esg_settings')) || {
+  const [settings, setSettings] = useState({
     autoEmissionCalc: true,
     requireCSRevidence: true,
     autoAwardBadges: true,
     emailAlerts: true,
   });
+  
+  const [loading, setLoading] = useState(true);
 
-  // Save all databases back to LocalStorage whenever they change
+  // Sync session state from Supabase
   useEffect(() => {
-    localStorage.setItem('esg_departments', JSON.stringify(departments));
-  }, [departments]);
-  useEffect(() => {
-    localStorage.setItem('esg_categories', JSON.stringify(categories));
-  }, [categories]);
-  useEffect(() => {
-    localStorage.setItem('esg_emissionFactors', JSON.stringify(emissionFactors));
-  }, [emissionFactors]);
-  useEffect(() => {
-    localStorage.setItem('esg_products', JSON.stringify(products));
-  }, [products]);
-  useEffect(() => {
-    localStorage.setItem('esg_environmentalGoals', JSON.stringify(environmentalGoals));
-  }, [environmentalGoals]);
-  useEffect(() => {
-    localStorage.setItem('esg_policies', JSON.stringify(policies));
-  }, [policies]);
-  useEffect(() => {
-    localStorage.setItem('esg_badges', JSON.stringify(badges));
-  }, [badges]);
-  useEffect(() => {
-    localStorage.setItem('esg_rewards', JSON.stringify(rewards));
-  }, [rewards]);
-  useEffect(() => {
-    localStorage.setItem('esg_carbonTransactions', JSON.stringify(carbonTransactions));
-  }, [carbonTransactions]);
-  useEffect(() => {
-    localStorage.setItem('esg_csrActivities', JSON.stringify(csrActivities));
-  }, [csrActivities]);
-  useEffect(() => {
-    localStorage.setItem('esg_employeeParticipations', JSON.stringify(employeeParticipations));
-  }, [employeeParticipations]);
-  useEffect(() => {
-    localStorage.setItem('esg_challenges', JSON.stringify(challenges));
-  }, [challenges]);
-  useEffect(() => {
-    localStorage.setItem('esg_challengeParticipations', JSON.stringify(challengeParticipations));
-  }, [challengeParticipations]);
-  useEffect(() => {
-    localStorage.setItem('esg_policyAcknowledgements', JSON.stringify(policyAcknowledgements));
-  }, [policyAcknowledgements]);
-  useEffect(() => {
-    localStorage.setItem('esg_audits', JSON.stringify(audits));
-  }, [audits]);
-  useEffect(() => {
-    localStorage.setItem('esg_complianceIssues', JSON.stringify(complianceIssues));
-  }, [complianceIssues]);
-  useEffect(() => {
-    localStorage.setItem('esg_activeUser', JSON.stringify(activeUser));
-  }, [activeUser]);
-  useEffect(() => {
-    localStorage.setItem('esg_usersList', JSON.stringify(usersList));
-  }, [usersList]);
-  useEffect(() => {
-    localStorage.setItem('esg_settings', JSON.stringify(settings));
-  }, [settings]);
-  useEffect(() => {
-    localStorage.setItem('esg_notifications', JSON.stringify(notifications));
-  }, [notifications]);
+    async function checkUser() {
+      try {
+        const sessionData = await authService.getCurrentSession();
+        if (sessionData) {
+          setActiveUser(sessionData.profile);
+          await loadAllOrgData(sessionData.profile.org_id, sessionData.profile);
+        } else {
+          setActiveUser(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Session check error:", err);
+        setLoading(false);
+      }
+    }
+    checkUser();
 
-  // Handle switching active users
-  const switchUser = (userId) => {
-    const matchedUser = usersList.find(u => u.id === userId);
-    if (matchedUser) {
-      setActiveUser(matchedUser);
-      addNotification('info', `Switched active profile to ${matchedUser.name} (${matchedUser.role}).`);
+    // Set up auth state change listeners
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        try {
+          const profile = await authService.getUserProfile(session.user.id);
+          setActiveUser(profile);
+          await loadAllOrgData(profile.org_id, profile);
+        } catch (err) {
+          console.error("Profile load on auth change error:", err);
+        }
+      } else {
+        setActiveUser(null);
+        clearAllState();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const clearAllState = () => {
+    setDepartments([]);
+    setCategories([]);
+    setEmissionFactors([]);
+    setProducts([]);
+    setEnvironmentalGoals([]);
+    setPolicies([]);
+    setBadges([]);
+    setRewards([]);
+    setCarbonTransactions([]);
+    setCsrActivities([]);
+    setEmployeeParticipations([]);
+    setChallenges([]);
+    setChallengeParticipations([]);
+    setPolicyAcknowledgements([]);
+    setAudits([]);
+    setComplianceIssues([]);
+    setUsersList([]);
+  };
+
+  const loadAllOrgData = async (orgId, profile) => {
+    setLoading(true);
+    try {
+      // 1. Fetch departments. If empty, trigger seeder!
+      const depts = await settingsService.fetchDepartments();
+      
+      if (depts.length === 0) {
+        await seedNewOrganizationData(orgId, profile.id);
+        // Reload after seed
+        await reloadAllData(orgId);
+        return;
+      }
+
+      setDepartments(depts);
+
+      // 2. Fetch everything else in parallel
+      const [
+        factors,
+        prodList,
+        goals,
+        pols,
+        bdgs,
+        rwds,
+        txs,
+        acts,
+        parts,
+        chals,
+        chalParts,
+        acks,
+        auds,
+        issues,
+        config,
+        members
+      ] = await Promise.all([
+        environmentalService.fetchEmissionFactors(),
+        environmentalService.fetchProducts(),
+        environmentalService.fetchEnvironmentalGoals(),
+        governanceService.fetchPolicies(),
+        gamificationService.fetchBadges(),
+        gamificationService.fetchRewards(),
+        environmentalService.fetchCarbonTransactions(),
+        socialService.fetchCsrActivities(),
+        socialService.fetchEmployeeParticipations(),
+        gamificationService.fetchChallenges(),
+        gamificationService.fetchChallengeParticipations(),
+        governanceService.fetchPolicyAcknowledgements(),
+        governanceService.fetchAudits(),
+        governanceService.fetchComplianceIssues(),
+        settingsService.fetchConfigSettings(orgId),
+        authService.getOrgUsers()
+      ]);
+
+      setEmissionFactors(factors);
+      setProducts(prodList);
+      setEnvironmentalGoals(goals);
+      setPolicies(pols);
+      setBadges(bdgs);
+      setRewards(rwds);
+      setCarbonTransactions(txs);
+      setCsrActivities(acts);
+      setEmployeeParticipations(parts);
+      setChallenges(chals);
+      setChallengeParticipations(chalParts);
+      setPolicyAcknowledgements(acks);
+      setAudits(auds);
+      setComplianceIssues(issues);
+      setUsersList(members);
+
+      setSettings({
+        autoEmissionCalc: config.auto_emission_calc,
+        requireCSRevidence: config.require_csr_evidence,
+        autoAwardBadges: config.auto_award_badges,
+        emailAlerts: config.email_alerts,
+      });
+
+    } catch (err) {
+      console.error("Data load error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Push system notification helper
+  const reloadAllData = async (orgId) => {
+    if (!orgId && activeUser) orgId = activeUser.org_id;
+    if (!orgId) return;
+    try {
+      const [
+        depts,
+        factors,
+        prodList,
+        goals,
+        pols,
+        bdgs,
+        rwds,
+        txs,
+        acts,
+        parts,
+        chals,
+        chalParts,
+        acks,
+        auds,
+        issues,
+        members
+      ] = await Promise.all([
+        settingsService.fetchDepartments(),
+        environmentalService.fetchEmissionFactors(),
+        environmentalService.fetchProducts(),
+        environmentalService.fetchEnvironmentalGoals(),
+        governanceService.fetchPolicies(),
+        gamificationService.fetchBadges(),
+        gamificationService.fetchRewards(),
+        environmentalService.fetchCarbonTransactions(),
+        socialService.fetchCsrActivities(),
+        socialService.fetchEmployeeParticipations(),
+        gamificationService.fetchChallenges(),
+        gamificationService.fetchChallengeParticipations(),
+        governanceService.fetchPolicyAcknowledgements(),
+        governanceService.fetchAudits(),
+        governanceService.fetchComplianceIssues(),
+        authService.getOrgUsers()
+      ]);
+
+      setDepartments(depts);
+      setEmissionFactors(factors);
+      setProducts(prodList);
+      setEnvironmentalGoals(goals);
+      setPolicies(pols);
+      setBadges(bdgs);
+      setRewards(rwds);
+      setCarbonTransactions(txs);
+      setCsrActivities(acts);
+      setEmployeeParticipations(parts);
+      setChallenges(chals);
+      setChallengeParticipations(chalParts);
+      setPolicyAcknowledgements(acks);
+      setAudits(auds);
+      setComplianceIssues(issues);
+      setUsersList(members);
+    } catch (err) {
+      console.error("Reload error:", err);
+    }
+  };
+
+  // Seeder to populate a new multi-tenant organization with rich demo data
+  const seedNewOrganizationData = async (orgId, profileId) => {
+    try {
+      // 1. Departments
+      const { data: dept1 } = await supabase.from('departments').insert({ org_id: orgId, name: 'Manufacturing', code: 'MFC', head: 'S. Nair', employees: 134 }).select().single();
+      const { data: dept2 } = await supabase.from('departments').insert({ org_id: orgId, name: 'Logistics', code: 'LOC', head: 'R. Iyer', employees: 58, parent_dept_id: dept1.id }).select().single();
+      await supabase.from('departments').insert([
+        { org_id: orgId, name: 'Corporate', code: 'COF', head: 'A. Mehta', employees: 41 },
+        { org_id: orgId, name: 'Sales', code: 'SAL', head: 'M. Sharma', employees: 85 },
+      ]);
+
+      // 2. Emission Factors
+      const { data: f1 } = await supabase.from('emission_factors').insert({ org_id: orgId, name: 'Grid Electricity', category: 'Electricity', co2_per_unit: 0.85, unit: 'kWh' }).select().single();
+      const { data: f2 } = await supabase.from('emission_factors').insert({ org_id: orgId, name: 'Diesel fuel (Fleet)', category: 'Fleet Fuel', co2_per_unit: 2.68, unit: 'Liters' }).select().single();
+      await supabase.from('emission_factors').insert([
+        { org_id: orgId, name: 'Natural Gas', category: 'Heating', co2_per_unit: 1.89, unit: 'm³' },
+        { org_id: orgId, name: 'Air Travel (Short Haul)', category: 'Business Travel', co2_per_unit: 0.15, unit: 'km' }
+      ]);
+
+      // 3. Products
+      await supabase.from('products').insert([
+        { org_id: orgId, name: 'EcoPack Cardboard Box', carbon_footprint: 0.12, recyclability: 100, material_source: 'Recycled Pulp' },
+        { org_id: orgId, name: 'Standard Plastic Shrink', carbon_footprint: 0.89, recyclability: 30, material_source: 'Petroleum Base' },
+      ]);
+
+      // 4. Goals
+      await supabase.from('environmental_goals').insert([
+        { org_id: orgId, name: 'Reduce Fleet Emissions', department_id: dept2.id, target_co2: 500, current_co2: 350, deadline: '2026-12-31', status: 'Active' },
+        { org_id: orgId, name: 'Cut Packaging Waste', department_id: dept1.id, target_co2: 120, current_co2: 98, deadline: '2026-09-30', status: 'On Track' },
+      ]);
+
+      // 5. Policies
+      const { data: pol1 } = await supabase.from('policies').insert({ org_id: orgId, title: 'Anti-Corruption Policy', category: 'Ethics & Compliance', content: 'Our code of conduct requires strict compliance with global anti-bribery standards. No employee may offer, request, or receive bribes of any nature.', version: 'v2.1', effective_date: '2026-01-01' }).select().single();
+      await supabase.from('policies').insert([
+        { org_id: orgId, title: 'Supplier Code of Conduct', category: 'Supply Chain', content: 'All suppliers must guarantee fair wages, safe working environments, and document zero usage of forced labor.', version: 'v1.4', effective_date: '2026-03-15' },
+      ]);
+
+      // 6. Badges
+      await supabase.from('badges').insert([
+        { org_id: orgId, name: 'Green Beginner', description: 'Awarded for completing your first sustainability challenge.', unlock_rule: 'Complete 1 Challenge', icon: '🌱' },
+        { org_id: orgId, name: 'Team Player', description: 'Awarded for participating in 3 or more CSR activities.', unlock_rule: 'Participate in 3 CSR Activities', icon: '🤝' },
+        { org_id: orgId, name: 'Sustainability Champion', description: 'Awarded for earning more than 5,000 total XP.', unlock_rule: 'Reach 5000 XP', icon: '🏆' },
+      ]);
+
+      // 7. Rewards
+      await supabase.from('rewards').insert([
+        { org_id: orgId, name: 'Eco Coffee Mug', description: 'Double-walled stainless steel reusable coffee mug with EcoSphere branding.', points_required: 50, stock: 8 },
+        { org_id: orgId, name: 'Tree Planting Certificate', description: 'We will plant a native tree in your name in the local forest reserve.', points_required: 100, stock: 999 },
+      ]);
+
+      // 8. CSR Activities
+      await supabase.from('csr_activities').insert([
+        { org_id: orgId, name: 'Tree Plantation Drive', description: 'Join the annual afforestation campaign in the northern suburbs to restore forest canopy.', points: 50, evidence_required: true },
+        { org_id: orgId, name: 'ESG Corporate Workshop', description: 'Participate in the compliance training and sustainable operational standards seminar.', points: 20, evidence_required: false },
+      ]);
+
+      // 9. Challenges
+      await supabase.from('challenges').insert([
+        { org_id: orgId, title: 'Sustainability Sprint', category: 'Carbon reduction', description: 'Cut your monthly operational carbon footprint by 10% through conscious energy consumption.', xp: 200, difficulty: 'Hard', deadline: '2026-07-20' },
+        { org_id: orgId, title: 'Recycle Challenge', category: 'Waste sorting', description: 'Properly categorize office waste.', xp: 80, difficulty: 'Easy', deadline: '2026-07-15' },
+      ]);
+
+      // 10. Link profile to S. Nair (first manager)
+      // Since first user registers, let's create a couple of mock members
+      await supabase.from('profiles').insert([
+        { id: '00000000-0000-0000-0000-000000000002', org_id: orgId, name: 'Karan Shah', role: 'Employee', xp: 3910, points: 210, badges_unlocked: ['Green Beginner'] },
+        { id: '00000000-0000-0000-0000-000000000003', org_id: orgId, name: 'S. Nair', role: 'Manager', xp: 5200, points: 600, badges_unlocked: ['Sustainability Champion'] },
+      ]);
+
+      // 11. Initial Carbon logs
+      await supabase.from('carbon_transactions').insert([
+        { org_id: orgId, date: '2026-07-01', type: 'Fleet', quantity: 150, unit: 'Liters', emission_factor_name: 'Diesel fuel (Fleet)', co2_value: 402.0, department_id: dept2.id },
+        { org_id: orgId, date: '2026-07-03', type: 'Purchase', quantity: 2400, unit: 'kWh', emission_factor_name: 'Grid Electricity', co2_value: 2040.0, department_id: dept1.id },
+      ]);
+
+    } catch (err) {
+      console.error("Seeding error:", err);
+    }
+  };
+
+  // Switch virtual profiles for local demo
+  const switchUser = async (userId) => {
+    try {
+      const selectedProfile = usersList.find(u => u.id === userId);
+      if (selectedProfile) {
+        setActiveUser(selectedProfile);
+        addNotification('info', `Switched active profile to ${selectedProfile.name} (${selectedProfile.role}).`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const addNotification = (type, message) => {
     const newNotif = {
       id: Date.now(),
@@ -237,14 +344,13 @@ export const ESGDataProvider = ({ children }) => {
     setNotifications(prev => [newNotif, ...prev]);
   };
 
-  // Add standard user action logger or trigger auto alert functions
-  const awardUserXp = (amount) => {
-    setActiveUser(prev => {
-      const nextXp = prev.xp + amount;
-      const nextPoints = prev.points + amount; // 1 XP = 1 Point (re-deemable)
-      const earnedBadges = [...prev.badges];
+  const awardUserXp = async (amount) => {
+    if (!activeUser) return;
+    try {
+      const nextXp = activeUser.xp + amount;
+      const nextPoints = activeUser.points + amount;
+      const earnedBadges = [...activeUser.badges_unlocked];
 
-      // Auto Badge checks
       if (settings.autoAwardBadges) {
         if (nextXp >= 5000 && !earnedBadges.includes('Sustainability Champion')) {
           earnedBadges.push('Sustainability Champion');
@@ -252,56 +358,53 @@ export const ESGDataProvider = ({ children }) => {
         }
       }
 
-      return {
-        ...prev,
+      const updatedProfile = await authService.updateProfile(activeUser.id, {
         xp: nextXp,
         points: nextPoints,
-        badges: earnedBadges,
-      };
-    });
+        badges_unlocked: earnedBadges
+      });
+
+      setActiveUser(updatedProfile);
+      setUsersList(prev => prev.map(u => u.id === activeUser.id ? updatedProfile : u));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // Add custom helper function to update department scores dynamically
+  // Dynamic score calculator
   const getDepartmentScores = (deptName) => {
-    // 1. Environmental Score: starts at 100
-    // Deduct points based on carbon transactions relative to employees, reward based on goal completion
-    const deptEmissions = carbonTransactions
-      .filter(t => t.department === deptName && t.status === 'Active')
-      .reduce((sum, t) => sum + t.co2Value, 0);
+    const dept = departments.find(d => d.name === deptName);
+    if (!dept) return { environmental: 80, social: 70, governance: 80, total: 77 };
 
-    const deptGoals = environmentalGoals.filter(g => g.department === deptName);
+    const deptEmissions = carbonTransactions
+      .filter(t => t.department_id === dept.id && t.status === 'Active')
+      .reduce((sum, t) => sum + parseFloat(t.co2_value), 0);
+
+    const deptGoals = environmentalGoals.filter(g => g.department_id === dept.id);
     let goalCompletionSum = 0;
     deptGoals.forEach(g => {
-      const prog = g.targetCo2 > 0 ? (g.currentCo2 / g.targetCo2) * 100 : 0;
+      const prog = g.target_co2 > 0 ? (g.current_co2 / g.target_co2) * 100 : 0;
       if (g.status === 'Completed') goalCompletionSum += 100;
       else if (g.status === 'On Track') goalCompletionSum += 80;
       else goalCompletionSum += Math.min(prog, 100);
     });
-    const avgGoalProgress = deptGoals.length > 0 ? goalCompletionSum / deptGoals.length : 90; // Default baseline if no goals
+    const avgGoalProgress = deptGoals.length > 0 ? goalCompletionSum / deptGoals.length : 90;
 
-    const emissionDeduction = Math.min((deptEmissions / 100), 40); // cap environmental penalty at 40 points
+    const emissionDeduction = Math.min((deptEmissions / 100), 40);
     const calculatedEnvScore = Math.max(Math.round(avgGoalProgress * 0.7 + (100 - emissionDeduction) * 0.3), 0);
 
-    // 2. Social Score: starts at 50
-    // Based on completed challenges and approved CSR activity participations
-    const deptEmployeesCount = departments.find(d => d.name === deptName)?.employees || 10;
-    const approvedCSRsCount = employeeParticipations.filter(p => p.department === deptName && p.status === 'Approved').length;
-    const completedChallengesCount = challengeParticipations.filter(p => {
-      // Find employee's department (Mock matching: Aditi = Manufacturing, Karan = Logistics, Priya = Corporate)
-      const empDept = p.employee === 'Aditi Rao' ? 'Manufacturing' : p.employee === 'Karan Shah' ? 'Logistics' : 'Corporate';
-      return empDept === deptName && p.status === 'Approved';
-    }).length;
+    // Social Score
+    const approvedCSRsCount = employeeParticipations.filter(p => p.employee_id === activeUser?.id && p.status === 'Approved').length;
+    const completedChallengesCount = challengeParticipations.filter(p => p.employee_id === activeUser?.id && p.status === 'Approved').length;
 
-    const participationRate = Math.min(((approvedCSRsCount + completedChallengesCount) / deptEmployeesCount) * 100, 100);
+    const participationRate = Math.min(((approvedCSRsCount + completedChallengesCount) / (dept.employees || 10)) * 100, 100);
     const calculatedSocScore = Math.min(Math.round(50 + participationRate * 0.5), 100);
 
-    // 3. Governance Score: starts at 100
-    // Deduct heavily for unresolved open compliance issues
-    const deptOpenIssues = complianceIssues.filter(i => i.department === deptName && i.status === 'Open').length;
-    const auditStatusCount = audits.filter(a => a.department === deptName && a.status === 'Completed').length;
+    // Governance Score
+    const deptOpenIssues = complianceIssues.filter(i => i.department_id === dept.id && i.status === 'Open').length;
+    const auditStatusCount = audits.filter(a => a.department_id === dept.id && a.status === 'Completed').length;
     const calculatedGovScore = Math.max(Math.min(100 - (deptOpenIssues * 15) + (auditStatusCount * 5), 100), 0);
 
-    // 4. Combined weighted total
     const weightedTotal = Math.round(
       (calculatedEnvScore * 0.40) + 
       (calculatedSocScore * 0.30) + 
@@ -316,12 +419,11 @@ export const ESGDataProvider = ({ children }) => {
     };
   };
 
-  // Compile calculations for all departments to feed the Overall Org Score
   const getOverallESGScore = () => {
+    if (departments.length === 0) return { environmental: 80, social: 70, governance: 80, total: 77 };
     let envSum = 0, socSum = 0, govSum = 0, totalSum = 0;
-    const activeDepts = departments.filter(d => d.status === 'Active');
-
-    activeDepts.forEach(d => {
+    
+    departments.forEach(d => {
       const scores = getDepartmentScores(d.name);
       envSum += scores.environmental;
       socSum += scores.social;
@@ -329,7 +431,7 @@ export const ESGDataProvider = ({ children }) => {
       totalSum += scores.total;
     });
 
-    const count = activeDepts.length || 1;
+    const count = departments.length || 1;
     return {
       environmental: Math.round(envSum / count),
       social: Math.round(socSum / count),
@@ -338,335 +440,372 @@ export const ESGDataProvider = ({ children }) => {
     };
   };
 
-  // --- ACTIONS ---
+  // --- COMPONENT HANDLERS LINKED TO SERVICES ---
 
-  // 1. Environmental Actions
-  const logEmissionsTransaction = (type, quantity, factorId, customDate, deptName) => {
+  const logEmissionsTransaction = async (type, quantity, factorId, customDate, deptName) => {
+    if (!activeUser) return;
     const factor = emissionFactors.find(f => f.id === factorId);
-    if (!factor) return;
-    const co2 = parseFloat((quantity * factor.co2PerUnit).toFixed(2));
+    const dept = departments.find(d => d.name === deptName);
+    if (!factor || !dept) return;
 
-    const newTransaction = {
-      id: String(Date.now()),
-      date: customDate || new Date().toISOString().split('T')[0],
-      type,
-      quantity: parseFloat(quantity),
-      unit: factor.unit,
-      emissionFactorName: factor.name,
-      co2Value: co2,
-      status: 'Active',
-      department: deptName || activeUser.department,
-    };
+    const co2 = parseFloat((quantity * factor.co2_per_unit).toFixed(2));
+    
+    try {
+      const newTransaction = await environmentalService.logEmissionsTransaction(
+        activeUser.org_id,
+        type,
+        quantity,
+        factor.unit,
+        factor.name,
+        co2,
+        dept.id,
+        customDate
+      );
 
-    setCarbonTransactions(prev => [newTransaction, ...prev]);
-    addNotification('environmental', `New ${type} emissions log registered: ${co2} kg CO2e.`);
-
-    // If active user is logging, award XP
-    if (activeUser.name) {
-      awardUserXp(10);
+      setCarbonTransactions(prev => [newTransaction, ...prev]);
+      addNotification('environmental', `New ${type} emissions log registered: ${co2} kg CO2e.`);
+      await awardUserXp(10);
+    } catch (err) {
+      alert(`Emissions Log Failed: ${err.message || err}`);
     }
   };
 
-  const addEmissionFactor = (name, category, co2PerUnit, unit) => {
-    const newFactor = {
-      id: String(Date.now()),
-      name,
-      category,
-      co2PerUnit: parseFloat(co2PerUnit),
-      unit
-    };
-    setEmissionFactors(prev => [...prev, newFactor]);
-    addNotification('settings', `Added new emission factor: ${name}.`);
+  const addEmissionFactor = async (name, category, co2PerUnit, unit) => {
+    if (!activeUser) return;
+    try {
+      const newFactor = await environmentalService.addEmissionFactor(
+        activeUser.org_id,
+        name,
+        category,
+        co2PerUnit,
+        unit
+      );
+      setEmissionFactors(prev => [...prev, newFactor]);
+      addNotification('settings', `Added new emission factor: ${name}.`);
+    } catch (err) {
+      alert(`Add Factor Failed: ${err.message || err}`);
+    }
   };
 
-  const addEnvironmentalGoal = (name, department, targetCo2, deadline) => {
-    const newGoal = {
-      id: String(Date.now()),
-      name,
-      department,
-      targetCo2: parseFloat(targetCo2),
-      currentCo2: 0,
-      deadline,
-      status: 'Active'
-    };
-    setEnvironmentalGoals(prev => [...prev, newGoal]);
-    addNotification('environmental', `New environmental target set for ${department}: "${name}".`);
+  const addEnvironmentalGoal = async (name, deptName, targetCo2, deadline) => {
+    if (!activeUser) return;
+    const dept = departments.find(d => d.name === deptName);
+    if (!dept) return;
+
+    try {
+      const newGoal = await environmentalService.addEnvironmentalGoal(
+        activeUser.org_id,
+        name,
+        dept.id,
+        targetCo2,
+        deadline
+      );
+      // Map dept name back
+      const formatted = { ...newGoal, department: deptName };
+      setEnvironmentalGoals(prev => [...prev, formatted]);
+      addNotification('environmental', `New environmental target set: "${name}".`);
+    } catch (err) {
+      alert(`Add Goal Failed: ${err.message || err}`);
+    }
   };
 
-  const updateGoalProgress = (goalId, currentCo2) => {
-    setEnvironmentalGoals(prev => prev.map(g => {
-      if (g.id !== goalId) return g;
-      const parsedCo2 = parseFloat(currentCo2);
-      const isCompleted = parsedCo2 >= g.targetCo2;
-      return {
-        ...g,
-        currentCo2: parsedCo2,
-        status: isCompleted ? 'Completed' : (parsedCo2 > g.targetCo2 * 0.75 ? 'On Track' : 'Active')
-      };
-    }));
+  const updateGoalProgress = async (goalId, currentCo2) => {
+    const goal = environmentalGoals.find(g => g.id === goalId);
+    if (!goal) return;
+
+    const parsedCo2 = parseFloat(currentCo2);
+    const isCompleted = parsedCo2 >= goal.target_co2;
+    const status = isCompleted ? 'Completed' : (parsedCo2 > goal.target_co2 * 0.75 ? 'On Track' : 'Active');
+
+    try {
+      const updated = await environmentalService.updateGoalProgress(goalId, currentCo2, status);
+      setEnvironmentalGoals(prev => prev.map(g => g.id === goalId ? { ...g, current_co2: parsedCo2, status } : g));
+      addNotification('environmental', `Updated progress for target: "${goal.name}".`);
+    } catch (err) {
+      alert(`Update Progress Failed: ${err.message || err}`);
+    }
   };
 
-  // 2. Social Actions
-  const addCsrActivity = (name, description, points, evidenceRequired) => {
-    const newAct = {
-      id: String(Date.now()),
-      name,
-      description,
-      points: parseInt(points),
-      status: 'Active',
-      evidenceRequired: !!evidenceRequired
-    };
-    setCsrActivities(prev => [...prev, newAct]);
-    addNotification('social', `New CSR Initiative added: "${name}".`);
+  const addCsrActivity = async (name, description, points, evidenceRequired) => {
+    if (!activeUser) return;
+    try {
+      const newAct = await socialService.addCsrActivity(
+        activeUser.org_id,
+        name,
+        description,
+        points,
+        evidenceRequired
+      );
+      setCsrActivities(prev => [...prev, newAct]);
+      addNotification('social', `New CSR Initiative added: "${name}".`);
+    } catch (err) {
+      alert(`Add Activity Failed: ${err.message || err}`);
+    }
   };
 
-  const joinCsrActivity = (activityId, employeeName, proofFileName) => {
+  const joinCsrActivity = async (activityId, employeeName, proofFile) => {
+    if (!activeUser) return;
     const activity = csrActivities.find(a => a.id === activityId);
     if (!activity) return;
 
-    // Verify evidence rule
-    if (settings.requireCSRevidence && activity.evidenceRequired && !proofFileName) {
-      alert("Error: Proof document is required to submit participation for this CSR Activity.");
-      return;
-    }
-
-    const newParticipation = {
-      id: String(Date.now()),
-      employee: employeeName || activeUser.name,
-      activityName: activity.name,
-      proof: proofFileName || 'No evidence uploaded',
-      pointsEarned: activity.points,
-      status: 'Pending',
-      date: new Date().toISOString().split('T')[0],
-      department: activeUser.department,
-    };
-
-    setEmployeeParticipations(prev => [newParticipation, ...prev]);
-    addNotification('social', `${employeeName || activeUser.name} submitted participation for "${activity.name}".`);
-  };
-
-  const approveParticipation = (participationId, approved) => {
-    setEmployeeParticipations(prev => prev.map(p => {
-      if (p.id !== participationId) return p;
-
-      const nextStatus = approved ? 'Approved' : 'Rejected';
-      if (approved) {
-        // Award XP to active user if they are the participant
-        if (p.employee === activeUser.name) {
-          awardUserXp(p.pointsEarned);
-        }
-        addNotification('social', `Participation approved for ${p.employee} - Earned ${p.pointsEarned} Points.`);
-
-        // Auto Badge Rule Check for CSR activity count
-        if (settings.autoAwardBadges && p.employee === activeUser.name) {
-          const approvedCount = employeeParticipations.filter(part => part.employee === activeUser.name && part.status === 'Approved').length + 1;
-          if (approvedCount >= 3 && !activeUser.badges.includes('Team Player')) {
-            setActiveUser(prev => ({
-              ...prev,
-              badges: [...prev.badges, 'Team Player']
-            }));
-            addNotification('badge', 'Congratulations! You unlocked the "Team Player" Badge! 🤝');
-          }
-        }
-      } else {
-        addNotification('social', `Participation for ${p.employee} was marked Rejected.`);
+    let proofUrl = 'none';
+    try {
+      if (proofFile && typeof proofFile !== 'string') {
+        proofUrl = await socialService.uploadEvidenceFile(proofFile);
+      } else if (proofFile) {
+        proofUrl = proofFile; // fallback if text
       }
 
-      return { ...p, status: nextStatus };
-    }));
+      const newParticipation = await socialService.joinCsrActivity(
+        activeUser.org_id,
+        activeUser.id,
+        activityId,
+        proofUrl,
+        activity.points
+      );
+
+      // Reload participations to get profiles join
+      const updatedParts = await socialService.fetchEmployeeParticipations();
+      setEmployeeParticipations(updatedParts);
+      addNotification('social', `Submitted participation request for "${activity.name}".`);
+    } catch (err) {
+      alert(`Join CSR Failed: ${err.message || err}`);
+    }
   };
 
-  // 3. Governance Actions
-  const acknowledgePolicy = (policyTitle, employeeName) => {
-    const user = employeeName || activeUser.name;
-    const alreadyAcknowledged = policyAcknowledgements.some(a => a.policyTitle === policyTitle && a.employee === user);
-    if (alreadyAcknowledged) return;
+  const approveParticipation = async (participationId, approved) => {
+    if (!activeUser || activeUser.role !== 'Manager') return;
+    const part = employeeParticipations.find(p => p.id === participationId);
+    if (!part) return;
 
-    const newAck = {
-      id: String(Date.now()),
-      policyTitle,
-      employee: user,
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    setPolicyAcknowledgements(prev => [...prev, newAck]);
-    addNotification('governance', `Policy Acknowledged: "${policyTitle}" signed by ${user}.`);
-    awardUserXp(15);
+    const status = approved ? 'Approved' : 'Rejected';
+    try {
+      await socialService.updateParticipationStatus(participationId, status);
+      
+      // Update local state
+      setEmployeeParticipations(prev => prev.map(p => p.id === participationId ? { ...p, status } : p));
+      
+      if (approved) {
+        // If participant matches switched profile, award XP
+        if (part.employee_id === activeUser.id) {
+          await awardUserXp(part.points_earned);
+        }
+        addNotification('social', `Volunteer credit approved for ${part.employee}.`);
+      } else {
+        addNotification('social', `Volunteer credit rejected for ${part.employee}.`);
+      }
+    } catch (err) {
+      alert(`Status Update Failed: ${err.message || err}`);
+    }
   };
 
-  const createComplianceIssue = (auditTitle, issue, severity, department, owner, dueDate) => {
-    const newIssue = {
-      id: String(Date.now()),
-      auditTitle,
-      issue,
-      severity,
-      department,
-      owner,
-      dueDate,
-      status: 'Open'
-    };
+  const acknowledgePolicy = async (policyTitle) => {
+    if (!activeUser) return;
+    const policy = policies.find(p => p.title === policyTitle);
+    if (!policy) return;
 
-    setComplianceIssues(prev => [newIssue, ...prev]);
-    addNotification('governance', `⚠️ NEW COMPLIANCE ISSUE: "${issue}" assigned to ${owner} (Due: ${dueDate})`);
+    try {
+      const newAck = await governanceService.acknowledgePolicy(
+        activeUser.org_id,
+        policy.id,
+        activeUser.id
+      );
+
+      const formattedAcks = await governanceService.fetchPolicyAcknowledgements();
+      setPolicyAcknowledgements(formattedAcks);
+      addNotification('governance', `Policy Acknowledged: "${policyTitle}".`);
+      await awardUserXp(15);
+    } catch (err) {
+      alert(`Policy Sign-off Failed: ${err.message || err}`);
+    }
   };
 
-  const resolveComplianceIssue = (issueId) => {
-    setComplianceIssues(prev => prev.map(i => {
-      if (i.id !== issueId) return i;
-      addNotification('governance', `Compliance issue resolved: "${i.issue}".`);
-      return { ...i, status: 'Resolved' };
-    }));
+  const createComplianceIssue = async (auditTitle, issue, severity, deptName, ownerName, dueDate) => {
+    if (!activeUser) return;
+    const audit = audits.find(a => a.title === auditTitle);
+    const dept = departments.find(d => d.name === deptName);
+    const owner = usersList.find(u => u.name === ownerName);
+    if (!audit || !dept || !owner) return;
+
+    try {
+      const newIssue = await governanceService.createComplianceIssue(
+        activeUser.org_id,
+        audit.id,
+        issue,
+        severity,
+        dept.id,
+        owner.id,
+        dueDate
+      );
+
+      const formattedIssues = await governanceService.fetchComplianceIssues();
+      setComplianceIssues(formattedIssues);
+      addNotification('governance', `⚠️ Compliance Ticket Raised: "${issue}".`);
+    } catch (err) {
+      alert(`Raise Issue Failed: ${err.message || err}`);
+    }
   };
 
-  // 4. Gamification Actions
-  const joinChallenge = (challengeId, employeeName) => {
+  const resolveComplianceIssue = async (issueId) => {
+    try {
+      await governanceService.resolveComplianceIssue(issueId);
+      setComplianceIssues(prev => prev.map(i => i.id === issueId ? { ...i, status: 'Resolved' } : i));
+      addNotification('governance', `Compliance issue resolved.`);
+    } catch (err) {
+      alert(`Resolve Issue Failed: ${err.message || err}`);
+    }
+  };
+
+  const joinChallenge = async (challengeId) => {
+    if (!activeUser) return;
     const challenge = challenges.find(c => c.id === challengeId);
     if (!challenge) return;
 
-    const alreadyJoined = challengeParticipations.some(p => p.challengeTitle === challenge.title && p.employee === (employeeName || activeUser.name));
-    if (alreadyJoined) return;
+    try {
+      await gamificationService.joinChallenge(
+        activeUser.org_id,
+        challengeId,
+        activeUser.id
+      );
 
-    const newPart = {
-      id: String(Date.now()),
-      challengeTitle: challenge.title,
-      employee: employeeName || activeUser.name,
-      progress: 0,
-      proof: 'none',
-      status: 'Joined',
-      xpAwarded: 0,
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    setChallengeParticipations(prev => [newPart, ...prev]);
-    addNotification('gamification', `Started challenge: "${challenge.title}"`);
+      const updatedParts = await gamificationService.fetchChallengeParticipations();
+      setChallengeParticipations(updatedParts);
+      addNotification('gamification', `Joined Challenge: "${challenge.title}"`);
+    } catch (err) {
+      alert(`Enroll Challenge Failed: ${err.message || err}`);
+    }
   };
 
-  const submitChallengeProgress = (participationId, progressPct, proofFile) => {
-    setChallengeParticipations(prev => prev.map(p => {
-      if (p.id !== participationId) return p;
-
-      const chal = challenges.find(c => c.title === p.challengeTitle);
-      const isComplete = progressPct >= 100;
-      const nextStatus = isComplete ? 'Under Review' : 'Joined';
-
-      return {
-        ...p,
-        progress: parseInt(progressPct),
-        proof: proofFile || 'Details logged',
-        status: nextStatus
-      };
-    }));
-  };
-
-  const approveChallengeParticipation = (participationId, approved) => {
-    setChallengeParticipations(prev => prev.map(p => {
-      if (p.id !== participationId) return p;
-
-      const chal = challenges.find(c => c.title === p.challengeTitle);
-      if (!chal) return p;
-
-      const nextStatus = approved ? 'Approved' : 'Rejected';
-      if (approved) {
-        if (p.employee === activeUser.name) {
-          awardUserXp(chal.xp);
-        }
-        addNotification('gamification', `Challenge Approved! ${p.employee} received ${chal.xp} XP.`);
-
-        // Badge unlock check (Green Beginner badge)
-        if (settings.autoAwardBadges && p.employee === activeUser.name) {
-          const completedCount = challengeParticipations.filter(part => part.employee === activeUser.name && part.status === 'Approved').length + 1;
-          if (completedCount >= 1 && !activeUser.badges.includes('Green Beginner')) {
-            setActiveUser(prev => ({
-              ...prev,
-              badges: [...prev.badges, 'Green Beginner']
-            }));
-            addNotification('badge', 'Congratulations! You unlocked the "Green Beginner" Badge! 🌱');
-          }
-        }
+  const submitChallengeProgress = async (participationId, progressVal, proofFile) => {
+    if (!activeUser) return;
+    try {
+      let proofUrl = 'none';
+      if (proofFile && typeof proofFile !== 'string') {
+        proofUrl = await socialService.uploadEvidenceFile(proofFile);
       }
 
-      return {
-        ...p,
-        status: nextStatus,
-        xpAwarded: approved ? chal.xp : 0
-      };
-    }));
+      await gamificationService.submitChallengeProgress(participationId, progressVal, proofUrl);
+      const updatedParts = await gamificationService.fetchChallengeParticipations();
+      setChallengeParticipations(updatedParts);
+      addNotification('gamification', `Submitted progress parameters update.`);
+    } catch (err) {
+      alert(`Progress Log Failed: ${err.message || err}`);
+    }
   };
 
-  // 5. Rewards Shop
-  const redeemReward = (rewardId) => {
+  const approveChallengeParticipation = async (participationId, approved) => {
+    if (!activeUser || activeUser.role !== 'Manager') return;
+    const part = challengeParticipations.find(p => p.id === participationId);
+    if (!part) return;
+
+    const chal = challenges.find(c => c.title === part.challengeTitle);
+    if (!chal) return;
+
+    const status = approved ? 'Approved' : 'Rejected';
+    const xp = approved ? chal.xp : 0;
+    try {
+      await gamificationService.updateChallengeParticipationStatus(participationId, status, xp);
+      setChallengeParticipations(prev => prev.map(p => p.id === participationId ? { ...p, status, xp_awarded: xp } : p));
+      
+      if (approved) {
+        if (part.employee_id === activeUser.id) {
+          await awardUserXp(chal.xp);
+        }
+        addNotification('gamification', `Challenge approved for ${part.employee} (+${chal.xp} XP).`);
+      }
+    } catch (err) {
+      alert(`Approve Challenge Failed: ${err.message || err}`);
+    }
+  };
+
+  const redeemReward = async (rewardId) => {
+    if (!activeUser) return;
     const reward = rewards.find(r => r.id === rewardId);
     if (!reward) return;
 
-    if (reward.stock <= 0) {
-      alert("Error: Out of stock!");
-      return;
+    try {
+      const updatedProfile = await gamificationService.redeemReward(
+        activeUser.org_id,
+        rewardId,
+        reward.stock,
+        reward.points_required,
+        activeUser.id,
+        activeUser.points
+      );
+
+      // Update local state
+      setActiveUser(updatedProfile);
+      setRewards(prev => prev.map(r => r.id === rewardId ? { ...r, stock: r.stock - 1 } : r));
+      addNotification('reward', `Redeemed: "${reward.name}" (-${reward.points_required} Pts).`);
+      alert(`Success! Redeemed "${reward.name}".`);
+    } catch (err) {
+      alert(`Redeem Failed: ${err.message || err}`);
     }
-
-    if (activeUser.points < reward.pointsRequired) {
-      alert(`Error: Insufficient points. You need ${reward.pointsRequired} points, but you have ${activeUser.points}.`);
-      return;
-    }
-
-    // Deduct points, decrement stock
-    setRewards(prev => prev.map(r => {
-      if (r.id !== rewardId) return r;
-      return { ...r, stock: r.stock - 1 };
-    }));
-
-    setActiveUser(prev => ({
-      ...prev,
-      points: prev.points - reward.pointsRequired
-    }));
-
-    addNotification('reward', `Redeemed reward: "${reward.name}" (-${reward.pointsRequired} Points).`);
-    alert(`Success! You have redeemed "${reward.name}". Check your email for redemption voucher details.`);
   };
 
-  // 6. Settings & Config
-  const addDepartment = (name, code, head, parentDept, employees) => {
-    const newDept = {
-      id: String(Date.now()),
-      name,
-      code,
-      head,
-      parentDept: parentDept || '—',
-      employees: parseInt(employees) || 1,
-      status: 'Active'
-    };
-    setDepartments(prev => [...prev, newDept]);
-    addNotification('settings', `Added new department: ${name}.`);
+  const addDepartment = async (name, code, head, parentDept, employees) => {
+    if (!activeUser) return;
+    try {
+      const newDept = await settingsService.addDepartment(
+        activeUser.org_id,
+        name,
+        code,
+        head,
+        parentDept,
+        employees
+      );
+      setDepartments(prev => [...prev, newDept]);
+      addNotification('settings', `Created Department: ${name}.`);
+    } catch (err) {
+      alert(`Add Department Failed: ${err.message || err}`);
+    }
+  };
+
+  const handleUpdateSettings = async (key) => {
+    if (!activeUser) return;
+    const dbKey = key === 'autoEmissionCalc' ? 'auto_emission_calc' :
+                  key === 'requireCSRevidence' ? 'require_csr_evidence' :
+                  key === 'autoAwardBadges' ? 'auto_award_badges' : 'email_alerts';
+                  
+    const nextVal = !settings[key];
+    try {
+      await settingsService.updateConfigSettings(activeUser.org_id, {
+        [dbKey]: nextVal
+      });
+      setSettings(prev => ({ ...prev, [key]: nextVal }));
+      addNotification('settings', `System settings config updated.`);
+    } catch (err) {
+      alert(`Settings Update Failed: ${err.message || err}`);
+    }
   };
 
   return (
     <ESGDataContext.Provider value={{
-      // States
-      departments, setDepartments,
-      categories, setCategories,
-      emissionFactors, setEmissionFactors,
-      products, setProducts,
-      environmentalGoals, setEnvironmentalGoals,
-      policies, setPolicies,
-      badges, setBadges,
-      rewards, setRewards,
-      carbonTransactions, setCarbonTransactions,
-      csrActivities, setCsrActivities,
-      employeeParticipations, setEmployeeParticipations,
-      challenges, setChallenges,
-      challengeParticipations, setChallengeParticipations,
-      policyAcknowledgements, setPolicyAcknowledgements,
-      audits, setAudits,
-      complianceIssues, setComplianceIssues,
-      activeUser, setActiveUser,
-      usersList, setUsersList,
-      settings, setSettings,
-      notifications, setNotifications,
+      loading,
+      departments,
+      categories,
+      emissionFactors,
+      products,
+      environmentalGoals,
+      policies,
+      badges,
+      rewards,
+      carbonTransactions,
+      csrActivities,
+      employeeParticipations,
+      challenges,
+      challengeParticipations,
+      policyAcknowledgements,
+      audits,
+      complianceIssues,
+      activeUser,
+      usersList,
+      settings,
+      notifications,
 
-      // Calculations
       getDepartmentScores,
       getOverallESGScore,
 
-      // Action Dispatchers
       logEmissionsTransaction,
       addEmissionFactor,
       addEnvironmentalGoal,
@@ -684,7 +823,8 @@ export const ESGDataProvider = ({ children }) => {
       addDepartment,
       addNotification,
       awardUserXp,
-      switchUser
+      switchUser,
+      handleUpdateSettings
     }}>
       {children}
     </ESGDataContext.Provider>

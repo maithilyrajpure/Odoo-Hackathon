@@ -37,7 +37,7 @@ export default function Social() {
     const act = csrActivities.find(a => a.id === selectedActivityId);
     if (!act) return;
 
-    if (settings.requireCSRevidence && act.evidenceRequired && !joinForm.proof) {
+    if (settings.requireCSRevidence && act.evidence_required && !joinForm.proof) {
       alert("Error: A proof file is required for this activity.");
       return;
     }
@@ -96,8 +96,8 @@ export default function Social() {
                     <UserPlus size={18} color="var(--color-soc)" />
                     {act.name}
                   </div>
-                  <span className={`badge-pill ${act.evidenceRequired ? 'badge-pending' : 'badge-joined'}`}>
-                    {act.evidenceRequired ? 'Evidence Required' : 'Open'}
+                  <span className={`badge-pill ${act.evidence_required ? 'badge-pending' : 'badge-joined'}`}>
+                    {act.evidence_required ? 'Evidence Required' : 'Open'}
                   </span>
                 </div>
                 <p className="info-card-desc">{act.description}</p>
@@ -147,7 +147,13 @@ export default function Social() {
                     <tr key={p.id}>
                       <td style={{ fontWeight: '600' }}>{p.employee}</td>
                       <td>{p.activityName}</td>
-                      <td style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>{p.proof}</td>
+                      <td style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                        {p.proof_url && p.proof_url !== 'none' ? (
+                          <a href={p.proof_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-soc)', textDecoration: 'underline' }}>View Proof</a>
+                        ) : (
+                          'No Proof'
+                        )}
+                      </td>
                       <td style={{ fontWeight: '600', color: 'var(--color-soc)' }}>{p.pointsEarned} Pts</td>
                       <td>
                         <span className={`badge-pill ${
@@ -295,18 +301,16 @@ export default function Social() {
                   </div>
 
                   <div className="form-group">
-                    <label>Upload Evidence/Proof File Name</label>
+                    <label>Upload Evidence/Proof Document</label>
                     <input 
-                      type="text" 
+                      type="file" 
                       className="form-input" 
-                      placeholder="e.g. certificate.pdf, event_photo.png"
-                      required={settings.requireCSRevidence && csrActivities.find(a => a.id === selectedActivityId)?.evidenceRequired}
-                      value={joinForm.proof}
-                      onChange={(e) => setJoinForm(prev => ({ ...prev, proof: e.target.value }))}
+                      required={settings.requireCSRevidence && csrActivities.find(a => a.id === selectedActivityId)?.evidence_required}
+                      onChange={(e) => setJoinForm(prev => ({ ...prev, proof: e.target.files[0] }))}
                     />
                     <small style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Info size={12} />
-                      {csrActivities.find(a => a.id === selectedActivityId)?.evidenceRequired 
+                      {csrActivities.find(a => a.id === selectedActivityId)?.evidence_required 
                         ? "This activity requires an attached proof file to earn points." 
                         : "No strict proof file required, but voluntary logging is encouraged."}
                     </small>

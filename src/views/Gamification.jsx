@@ -240,7 +240,13 @@ export default function Gamification() {
                           <span className="progress-label">{p.progress}%</span>
                         </div>
                       </td>
-                      <td style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>{p.proof}</td>
+                      <td style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                        {p.proof_url && p.proof_url !== 'none' ? (
+                          <a href={p.proof_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>View Proof</a>
+                        ) : (
+                          'No Proof'
+                        )}
+                      </td>
                       <td>
                         <span className={`badge-pill ${
                           p.status === 'Approved' ? 'badge-approved' : 
@@ -497,13 +503,11 @@ export default function Gamification() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Proof Attachment File Name</label>
+                      <label>Proof Attachment Document</label>
                       <input 
-                        type="text" 
+                        type="file" 
                         className="form-input" 
-                        placeholder="e.g. energy_bill.jpg"
-                        value={progressForm.proof}
-                        onChange={(e) => setProgressForm(prev => ({ ...prev, proof: e.target.value }))}
+                        onChange={(e) => setProgressForm(prev => ({ ...prev, proof: e.target.files[0] }))}
                       />
                     </div>
                   </div>

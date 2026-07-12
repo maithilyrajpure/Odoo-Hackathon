@@ -1,5 +1,6 @@
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { ESGDataContext } from '../context/ESGDataContext';
+import { authService } from '../services/authService';
 import { 
   LayoutDashboard, 
   Leaf, 
@@ -9,13 +10,23 @@ import {
   FileSpreadsheet, 
   Settings as SettingsIcon,
   Bell,
-  Sparkles
+  Sparkles,
+  LogOut
 } from 'lucide-react';
 
 export default function Sidebar({ currentView, setCurrentView }) {
   const { activeUser, notifications, usersList, switchUser } = useContext(ESGDataContext);
   const [showNotif, setShowNotif] = useState(false);
   const dropdownRef = useRef(null);
+
+  const handleSignOut = async () => {
+    try {
+      await authService.signOut();
+      setCurrentView('landing');
+    } catch (err) {
+      alert(`Sign Out Failed: ${err.message || err}`);
+    }
+  };
 
   const navItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, class: 'dashboard' },
@@ -166,6 +177,14 @@ export default function Sidebar({ currentView, setCurrentView }) {
             ))}
           </select>
         </div>
+
+        <button 
+          onClick={handleSignOut}
+          className="btn btn-secondary btn-sm"
+          style={{ width: '100%', marginTop: '8px', gap: '6px', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <LogOut size={12} /> Sign Out
+        </button>
       </div>
     </aside>
   );

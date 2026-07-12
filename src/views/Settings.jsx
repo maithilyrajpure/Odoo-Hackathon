@@ -7,8 +7,8 @@ export default function Settings() {
     departments,
     categories,
     settings,
-    setSettings,
-    addDepartment
+    addDepartment,
+    handleUpdateSettings
   } = useContext(ESGDataContext);
 
   const [activeSubTab, setActiveSubTab] = useState('departments'); // Default matches excalidraw: Departments
@@ -28,10 +28,7 @@ export default function Settings() {
   };
 
   const handleToggleSetting = (key) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    handleUpdateSettings(key);
   };
 
   return (
