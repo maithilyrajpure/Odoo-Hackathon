@@ -6,6 +6,7 @@ import { socialService } from '../services/socialService';
 import { governanceService } from '../services/governanceService';
 import { gamificationService } from '../services/gamificationService';
 import { settingsService } from '../services/settingsService';
+import { notificationsService } from '../services/notificationsService';
 
 export const ESGDataContext = createContext();
 
@@ -28,9 +29,7 @@ export const ESGDataProvider = ({ children }) => {
   const [complianceIssues, setComplianceIssues] = useState([]);
   const [activeUser, setActiveUser] = useState(null);
   const [usersList, setUsersList] = useState([]);
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'info', message: 'Welcome to EcoSphere ESG Platform!', date: new Date().toLocaleDateString() }
-  ]);
+  const [notifications, setNotifications] = useState([]);
   const [settings, setSettings] = useState({
     autoEmissionCalc: true,
     requireCSRevidence: true,
@@ -130,7 +129,8 @@ export const ESGDataProvider = ({ children }) => {
         auds,
         issues,
         config,
-        members
+        members,
+        notifs
       ] = await Promise.all([
         environmentalService.fetchEmissionFactors(),
         environmentalService.fetchProducts(),
@@ -147,7 +147,8 @@ export const ESGDataProvider = ({ children }) => {
         governanceService.fetchAudits(),
         governanceService.fetchComplianceIssues(),
         settingsService.fetchConfigSettings(orgId),
-        authService.getOrgUsers()
+        authService.getOrgUsers(),
+        notificationsService.fetchNotifications(orgId)
       ]);
 
       setEmissionFactors(factors);
@@ -165,6 +166,7 @@ export const ESGDataProvider = ({ children }) => {
       setAudits(auds);
       setComplianceIssues(issues);
       setUsersList(members);
+      setNotifications(notifs);
 
       setSettings({
         autoEmissionCalc: config.auto_emission_calc,
@@ -200,7 +202,8 @@ export const ESGDataProvider = ({ children }) => {
         acks,
         auds,
         issues,
-        members
+        members,
+        notifs
       ] = await Promise.all([
         settingsService.fetchDepartments(),
         environmentalService.fetchEmissionFactors(),
@@ -217,7 +220,8 @@ export const ESGDataProvider = ({ children }) => {
         governanceService.fetchPolicyAcknowledgements(),
         governanceService.fetchAudits(),
         governanceService.fetchComplianceIssues(),
-        authService.getOrgUsers()
+        authService.getOrgUsers(),
+        notificationsService.fetchNotifications(orgId)
       ]);
 
       setDepartments(depts);
@@ -236,6 +240,7 @@ export const ESGDataProvider = ({ children }) => {
       setAudits(auds);
       setComplianceIssues(issues);
       setUsersList(members);
+      setNotifications(notifs);
     } catch (err) {
       console.error("Reload error:", err);
     }
@@ -334,40 +339,80 @@ export const ESGDataProvider = ({ children }) => {
     }
   };
 
-  const addNotification = (type, message) => {
-    const newNotif = {
-      id: Date.now(),
-      type,
-      message,
-      date: new Date().toLocaleDateString(),
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-  };
-
-  const awardUserXp = async (amount) => {
+  const addNotification = async (type, message) => {
     if (!activeUser) return;
     try {
-      const nextXp = activeUser.xp + amount;
-      const nextPoints = activeUser.points + amount;
-      const earnedBadges = [...activeUser.badges_unlocked];
+      const newNotif = await notificationsService.addNotification(activeUser.org_id, type, message);
+      setNotifications(prev => [newNotif, ...prev]);
+    } catch (err) {
+      console.error("Failed to save notification:", err);
+      const localNotif = {
+        id: Date.now(),
+        type,
+        message,
+        date: new Date().toLocaleDateString(),
+      };
+      setNotifications(prev => [localNotif, ...prev]);
+    }
+  };
+
+  const awardEmployeeXp = async (employeeId, amount) => {
+    try {
+      const emp = usersList.find(u => u.id === employeeId);
+      if (!emp) return;
+
+      const nextXp = emp.xp + amount;
+      const nextPoints = emp.points + amount;
+      const earnedBadges = [...(emp.badges_unlocked || [])];
 
       if (settings.autoAwardBadges) {
         if (nextXp >= 5000 && !earnedBadges.includes('Sustainability Champion')) {
           earnedBadges.push('Sustainability Champion');
-          addNotification('badge', 'Congratulations! You unlocked the "Sustainability Champion" Badge! 🏆');
+          await addNotification('badge', `Congratulations! ${emp.name} unlocked the "Sustainability Champion" Badge! 🏆`);
         }
       }
 
-      const updatedProfile = await authService.updateProfile(activeUser.id, {
+      const updatedProfile = await authService.updateProfile(employeeId, {
         xp: nextXp,
         points: nextPoints,
         badges_unlocked: earnedBadges
       });
 
-      setActiveUser(updatedProfile);
-      setUsersList(prev => prev.map(u => u.id === activeUser.id ? updatedProfile : u));
+      setUsersList(prev => prev.map(u => u.id === employeeId ? updatedProfile : u));
+      if (activeUser && activeUser.id === employeeId) {
+        setActiveUser(updatedProfile);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("XP Award failed:", err);
+    }
+  };
+
+  const awardUserXp = async (amount) => {
+    if (!activeUser) return;
+    await awardEmployeeXp(activeUser.id, amount);
+  };
+
+  const unlockEmployeeBadge = async (employeeId, badgeName, badgeIcon) => {
+    try {
+      const emp = usersList.find(u => u.id === employeeId);
+      if (!emp) return;
+
+      const earnedBadges = [...(emp.badges_unlocked || [])];
+      if (earnedBadges.includes(badgeName)) return;
+
+      earnedBadges.push(badgeName);
+      await addNotification('badge', `Congratulations! ${emp.name} unlocked the "${badgeName}" Badge! ${badgeIcon}`);
+
+      const updatedProfile = await authService.updateProfile(employeeId, {
+        badges_unlocked: earnedBadges
+      });
+
+      setUsersList(prev => prev.map(u => u.id === employeeId ? updatedProfile : u));
+      if (activeUser && activeUser.id === employeeId) {
+        setActiveUser(updatedProfile);
+      }
+    } catch (err) {
+      console.error("Badge unlock failed:", err);
     }
   };
 
@@ -442,13 +487,18 @@ export const ESGDataProvider = ({ children }) => {
 
   // --- COMPONENT HANDLERS LINKED TO SERVICES ---
 
-  const logEmissionsTransaction = async (type, quantity, factorId, customDate, deptName) => {
+  const logEmissionsTransaction = async (type, quantity, factorId, customDate, deptName, customCo2) => {
     if (!activeUser) return;
     const factor = emissionFactors.find(f => f.id === factorId);
     const dept = departments.find(d => d.name === deptName);
     if (!factor || !dept) return;
 
-    const co2 = parseFloat((quantity * factor.co2_per_unit).toFixed(2));
+    let co2;
+    if (settings.autoEmissionCalc) {
+      co2 = parseFloat((quantity * factor.co2_per_unit).toFixed(2));
+    } else {
+      co2 = parseFloat(customCo2) || 0;
+    }
     
     try {
       const newTransaction = await environmentalService.logEmissionsTransaction(
@@ -463,7 +513,7 @@ export const ESGDataProvider = ({ children }) => {
       );
 
       setCarbonTransactions(prev => [newTransaction, ...prev]);
-      addNotification('environmental', `New ${type} emissions log registered: ${co2} kg CO2e.`);
+      await addNotification('environmental', `New ${type} emissions log registered: ${co2} kg CO2e.`);
       await awardUserXp(10);
     } catch (err) {
       alert(`Emissions Log Failed: ${err.message || err}`);
@@ -585,14 +635,22 @@ export const ESGDataProvider = ({ children }) => {
       // Update local state
       setEmployeeParticipations(prev => prev.map(p => p.id === participationId ? { ...p, status } : p));
       
+      const emp = usersList.find(u => u.id === part.employee_id);
+      const empName = emp ? emp.name : (part.employee || 'Employee');
+
       if (approved) {
-        // If participant matches switched profile, award XP
-        if (part.employee_id === activeUser.id) {
-          await awardUserXp(part.points_earned);
+        await awardEmployeeXp(part.employee_id, part.points_earned);
+        
+        // Auto Badge Rule Check for CSR activity count (Team Player)
+        if (settings.autoAwardBadges) {
+          const approvedCount = employeeParticipations.filter(p => p.employee_id === part.employee_id && p.status === 'Approved').length + 1;
+          if (approvedCount >= 3) {
+            await unlockEmployeeBadge(part.employee_id, 'Team Player', '🤝');
+          }
         }
-        addNotification('social', `Volunteer credit approved for ${part.employee}.`);
+        await addNotification('social', `Volunteer credit approved for ${empName}.`);
       } else {
-        addNotification('social', `Volunteer credit rejected for ${part.employee}.`);
+        await addNotification('social', `Volunteer credit rejected for ${empName}.`);
       }
     } catch (err) {
       alert(`Status Update Failed: ${err.message || err}`);
@@ -605,15 +663,26 @@ export const ESGDataProvider = ({ children }) => {
     if (!policy) return;
 
     try {
-      const newAck = await governanceService.acknowledgePolicy(
-        activeUser.org_id,
-        policy.id,
-        activeUser.id
-      );
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      
+      const { data, error } = await supabase
+        .from('policy_acknowledgements')
+        .insert({
+          org_id: activeUser.org_id,
+          policy_id: policy.id,
+          employee_id: activeUser.id,
+          date: now.toISOString().split('T')[0],
+          created_at: now.toISOString()
+        })
+        .select()
+        .single();
+      if (error) throw error;
 
       const formattedAcks = await governanceService.fetchPolicyAcknowledgements();
       setPolicyAcknowledgements(formattedAcks);
-      addNotification('governance', `Policy Acknowledged: "${policyTitle}".`);
+      await addNotification('governance', `Policy Acknowledged: "${policyTitle}" signed by ${activeUser.name}.`);
       await awardUserXp(15);
     } catch (err) {
       alert(`Policy Sign-off Failed: ${err.message || err}`);
@@ -640,7 +709,10 @@ export const ESGDataProvider = ({ children }) => {
 
       const formattedIssues = await governanceService.fetchComplianceIssues();
       setComplianceIssues(formattedIssues);
-      addNotification('governance', `⚠️ Compliance Ticket Raised: "${issue}".`);
+      await addNotification('governance', `⚠️ Compliance Ticket Raised: "${issue}".`);
+      if (settings.emailAlerts) {
+        await addNotification('governance', `✉️ Email Alert dispatched to ${owner.name} regarding compliance issue: "${issue}"`);
+      }
     } catch (err) {
       alert(`Raise Issue Failed: ${err.message || err}`);
     }
@@ -707,14 +779,54 @@ export const ESGDataProvider = ({ children }) => {
       await gamificationService.updateChallengeParticipationStatus(participationId, status, xp);
       setChallengeParticipations(prev => prev.map(p => p.id === participationId ? { ...p, status, xp_awarded: xp } : p));
       
+      const emp = usersList.find(u => u.id === part.employee_id);
+      const empName = emp ? emp.name : (part.employee || 'Employee');
+
       if (approved) {
-        if (part.employee_id === activeUser.id) {
-          await awardUserXp(chal.xp);
+        await awardEmployeeXp(part.employee_id, chal.xp);
+        
+        // Badge unlock check (Green Beginner badge)
+        if (settings.autoAwardBadges) {
+          const completedCount = challengeParticipations.filter(p => p.employee_id === part.employee_id && p.status === 'Approved').length + 1;
+          if (completedCount >= 1) {
+            await unlockEmployeeBadge(part.employee_id, 'Green Beginner', '🌱');
+          }
         }
-        addNotification('gamification', `Challenge approved for ${part.employee} (+${chal.xp} XP).`);
+        await addNotification('gamification', `Challenge approved for ${empName} (+${chal.xp} XP).`);
+      } else {
+        await addNotification('gamification', `Challenge submission rejected for ${empName}.`);
       }
     } catch (err) {
       alert(`Approve Challenge Failed: ${err.message || err}`);
+    }
+  };
+
+  const updateChallengeStatus = async (challengeId, status) => {
+    try {
+      const updated = await gamificationService.updateChallengeStatus(challengeId, status);
+      setChallenges(prev => prev.map(c => c.id === challengeId ? updated : c));
+      await addNotification('gamification', `Challenge status updated to ${status}: "${updated.title}".`);
+    } catch (err) {
+      alert(`Update Challenge Status Failed: ${err.message || err}`);
+    }
+  };
+
+  const addChallenge = async (title, category, description, xp, difficulty, deadline) => {
+    if (!activeUser) return;
+    try {
+      const newChal = await gamificationService.addChallenge(
+        activeUser.org_id,
+        title,
+        category,
+        description,
+        xp,
+        difficulty,
+        deadline
+      );
+      setChallenges(prev => [...prev, newChal]);
+      await addNotification('gamification', `Created Challenge: "${title}" (Status: Draft).`);
+    } catch (err) {
+      alert(`Add Challenge Failed: ${err.message || err}`);
     }
   };
 
@@ -824,7 +936,9 @@ export const ESGDataProvider = ({ children }) => {
       addNotification,
       awardUserXp,
       switchUser,
-      handleUpdateSettings
+      handleUpdateSettings,
+      updateChallengeStatus,
+      addChallenge
     }}>
       {children}
     </ESGDataContext.Provider>
