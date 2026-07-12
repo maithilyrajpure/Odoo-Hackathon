@@ -58,6 +58,72 @@ export const authService = {
     if (error) throw error;
   },
 
+  async signInWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async getOrCreateUserProfile(user) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (!error && data) return data;
+    } catch (err) {
+      console.warn("Profile fetch failed, attempting creation...", err);
+    }
+
+    let orgId;
+    try {
+      const { data: orgs, error: orgsErr } = await supabase
+        .from('organizations')
+        .select('id')
+        .limit(1);
+
+      if (orgs && orgs.length > 0) {
+        orgId = orgs[0].id;
+      } else {
+        const { data: newOrg, error: newOrgErr } = await supabase
+          .from('organizations')
+          .insert({ name: 'EcoSphere Global' })
+          .select()
+          .single();
+        if (newOrgErr) throw newOrgErr;
+        orgId = newOrg.id;
+      }
+    } catch (orgErr) {
+      console.error("Organization check failed:", orgErr);
+      throw orgErr;
+    }
+
+    const name = user.user_metadata?.full_name || user.email.split('@')[0];
+    const { data: newProfile, error: profileErr } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        org_id: orgId,
+        name,
+        role: 'Manager',
+        xp: 0,
+        points: 0,
+        badges_unlocked: []
+      })
+      .select()
+      .single();
+
+    if (profileErr) throw profileErr;
+    return newProfile;
+  },
+
   async getUserProfile(userId) {
     const { data, error } = await supabase
       .from('profiles')
@@ -74,7 +140,7 @@ export const authService = {
     if (error) throw error;
     if (!session) return null;
 
-    const profile = await this.getUserProfile(session.user.id);
+    const profile = await this.getOrCreateUserProfile(session.user);
     return { session, profile };
   },
 

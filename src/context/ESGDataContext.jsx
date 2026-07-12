@@ -62,7 +62,7 @@ export const ESGDataProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         try {
-          const profile = await authService.getUserProfile(session.user.id);
+          const profile = await authService.getOrCreateUserProfile(session.user);
           setActiveUser(profile);
           await loadAllOrgData(profile.org_id, profile);
         } catch (err) {
