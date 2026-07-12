@@ -21,7 +21,8 @@ import {
   Activity, 
   FileCheck2, 
   ShieldAlert, 
-  Leaf 
+  Leaf,
+  Trophy
 } from 'lucide-react';
 
 export default function Dashboard({ setCurrentView }) {
@@ -74,6 +75,19 @@ export default function Dashboard({ setCurrentView }) {
         fullName: d.name
       };
     });
+
+  const sortedDepartmentsLeaderboard = departments
+    .filter(d => d.status === 'Active')
+    .map(d => {
+      const scores = getDepartmentScores(d.name);
+      return {
+        id: d.id,
+        name: d.name,
+        code: d.code,
+        scores
+      };
+    })
+    .sort((a, b) => b.scores.total - a.scores.total);
 
   // Recent Activity Feed matching the mockup entries
   const recentActivities = [
@@ -257,7 +271,47 @@ export default function Dashboard({ setCurrentView }) {
       </div>
 
       {/* Activity Logs & Quick Actions Deck */}
-      <div className="panel-grid">
+      <div className="panel-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+        {/* Department Leaderboard Panel */}
+        <div className="panel-card">
+          <div className="panel-header">
+            <div className="panel-title">
+              <Trophy size={18} color="var(--color-accent)" />
+              Department ESG Leaderboard
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ranked</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px 0' }}>
+            {sortedDepartmentsLeaderboard.map((dept, index) => {
+              const rank = index + 1;
+              const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅';
+              return (
+                <div key={dept.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1rem', fontWeight: '800', width: '20px', textAlign: 'center' }}>
+                      {medal}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: '600', fontSize: '0.85rem', color: '#fff' }}>{dept.name}</div>
+                      <div style={{ display: 'flex', gap: '6px', fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        <span>E: <strong style={{ color: 'var(--color-env)' }}>{dept.scores.environmental}</strong></span>
+                        <span>S: <strong style={{ color: 'var(--color-soc)' }}>{dept.scores.social}</strong></span>
+                        <span>G: <strong style={{ color: 'var(--color-gov)' }}>{dept.scores.governance}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <div style={{ fontWeight: '800', fontSize: '1.05rem', color: 'var(--color-env)' }}>
+                      {dept.scores.total}%
+                    </div>
+                    <span style={{ fontSize: '0.6rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Score</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="panel-card">
           <div className="panel-header">
             <div className="panel-title">Recent Activity</div>

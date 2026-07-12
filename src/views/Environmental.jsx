@@ -9,9 +9,11 @@ export default function Environmental() {
     carbonTransactions,
     environmentalGoals,
     departments,
+    settings,
     addEmissionFactor,
     addEnvironmentalGoal,
-    updateGoalProgress
+    updateGoalProgress,
+    logEmissionsTransaction
   } = useContext(ESGDataContext);
 
   const [activeSubTab, setActiveSubTab] = useState('goals'); // Default matches excalidraw mockup: Environmental Goals
@@ -27,6 +29,42 @@ export default function Environmental() {
   // Form states
   const [factorForm, setFactorForm] = useState({ name: '', category: 'Electricity', co2PerUnit: '', unit: 'kWh' });
   const [goalForm, setGoalForm] = useState({ name: '', department: 'Manufacturing', targetCo2: '', deadline: '' });
+  const [erpForm, setErpForm] = useState({
+    opType: 'Logistics / Delivery (Fleet)',
+    factorId: '',
+    quantity: '',
+    department: '',
+    date: new Date().toISOString().split('T')[0],
+    manualCo2: ''
+  });
+
+  const getOpCategoryAndUnit = (opType) => {
+    switch (opType) {
+      case 'Utility Billing (Electricity)':
+        return { category: 'Electricity', defaultFactor: 'Grid Electricity' };
+      case 'Facility Heating (Natural Gas)':
+        return { category: 'Heating', defaultFactor: 'Natural Gas' };
+      case 'Business Travel (Air Travel)':
+        return { category: 'Business Travel', defaultFactor: 'Air Travel (Short Haul)' };
+      default:
+        return { category: 'Fleet Fuel', defaultFactor: 'Diesel fuel (Fleet)' };
+    }
+  };
+
+  const { category: currentCategory } = getOpCategoryAndUnit(erpForm.opType);
+  const filteredFactors = emissionFactors.filter(f => f.category === currentCategory);
+  
+  React.useEffect(() => {
+    if (filteredFactors.length > 0 && !filteredFactors.some(f => f.id === erpForm.factorId)) {
+      setErpForm(prev => ({ ...prev, factorId: filteredFactors[0].id }));
+    }
+  }, [erpForm.opType, emissionFactors]);
+
+  React.useEffect(() => {
+    if (departments.length > 0 && !erpForm.department) {
+      setErpForm(prev => ({ ...prev, department: departments[0].name }));
+    }
+  }, [departments]);
 
   // Exporters
   const handleExportCsv = (data, filename) => {
@@ -75,6 +113,32 @@ export default function Environmental() {
     setProgressValue('');
   };
 
+  const onSubmitErp = async (e) => {
+    e.preventDefault();
+    if (!erpForm.factorId || !erpForm.quantity || !erpForm.department) return;
+    
+    let ledgerType = 'Fleet';
+    if (erpForm.opType === 'Utility Billing (Electricity)') ledgerType = 'Electricity';
+    else if (erpForm.opType === 'Facility Heating (Natural Gas)') ledgerType = 'Heating';
+    else if (erpForm.opType === 'Business Travel (Air Travel)') ledgerType = 'Travel';
+
+    await logEmissionsTransaction(
+      ledgerType,
+      parseFloat(erpForm.quantity),
+      erpForm.factorId,
+      erpForm.date,
+      erpForm.department,
+      erpForm.manualCo2
+    );
+
+    setErpForm(prev => ({
+      ...prev,
+      quantity: '',
+      manualCo2: ''
+    }));
+    setActiveSubTab('transactions');
+  };
+
   // Filters
   const filteredGoals = environmentalGoals.filter(g => 
     g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -98,6 +162,12 @@ export default function Environmental() {
 
       {/* Horizontal Sub tabs */}
       <div className="tabs-container">
+        <button 
+          className={`tab-btn environmental ${activeSubTab === 'erp' ? 'active' : ''}`}
+          onClick={() => { setActiveSubTab('erp'); setSearchTerm(''); }}
+        >
+          ERP Operations Logger
+        </button>
         <button 
           className={`tab-btn environmental ${activeSubTab === 'factors' ? 'active' : ''}`}
           onClick={() => { setActiveSubTab('factors'); setSearchTerm(''); }}
@@ -123,6 +193,136 @@ export default function Environmental() {
           Environmental Goals
         </button>
       </div>
+
+      {/* Sub tab contents: 0. ERP Operations Logger */}
+      {activeSubTab === 'erp' && (
+        <div className="panel-card" style={{ maxWidth: '680px', margin: '0 auto' }}>
+          <div className="panel-header" style={{ marginBottom: '20px' }}>
+            <div className="panel-title">ERP Operations Carbon Logger</div>
+          </div>
+          <form onSubmit={onSubmitErp}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label>Business Operation / Activity</label>
+                <select 
+                  className="form-select"
+                  value={erpForm.opType}
+                  onChange={(e) => setErpForm(prev => ({ ...prev, opType: e.target.value }))}
+                >
+                  <option value="Logistics / Delivery (Fleet)">Logistics / Delivery (Fleet)</option>
+                  <option value="Utility Billing (Electricity)">Utility Billing (Electricity)</option>
+                  <option value="Facility Heating (Natural Gas)">Facility Heating (Natural Gas)</option>
+                  <option value="Business Travel (Air Travel)">Business Travel (Air Travel)</option>
+                </select>
+              </div>
+
+              <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 0 }}>
+                <div className="form-group">
+                  <label>Assign Department</label>
+                  <select 
+                    className="form-select"
+                    value={erpForm.department}
+                    onChange={(e) => setErpForm(prev => ({ ...prev, department: e.target.value }))}
+                  >
+                    {departments.map(d => (
+                      <option key={d.id} value={d.name}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Activity Date</label>
+                  <input 
+                    type="date" 
+                    className="form-input"
+                    required
+                    value={erpForm.date}
+                    onChange={(e) => setErpForm(prev => ({ ...prev, date: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 0 }}>
+                <div className="form-group">
+                  <label>Select Emission Factor</label>
+                  <select 
+                    className="form-select"
+                    value={erpForm.factorId}
+                    onChange={(e) => setErpForm(prev => ({ ...prev, factorId: e.target.value }))}
+                  >
+                    {filteredFactors.map(f => (
+                      <option key={f.id} value={f.id}>{f.name} ({f.co2_per_unit} kg CO2/{f.unit})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Logged Raw Quantity ({filteredFactors[0]?.unit || 'Units'})</label>
+                  <input 
+                    type="number" 
+                    step="any"
+                    className="form-input" 
+                    placeholder="e.g. 1200"
+                    required
+                    value={erpForm.quantity}
+                    onChange={(e) => setErpForm(prev => ({ ...prev, quantity: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Eco-Calculation Live Panel */}
+              <div style={{
+                background: 'rgba(46, 204, 113, 0.08)',
+                border: '1px solid rgba(46, 204, 113, 0.2)',
+                borderRadius: '10px',
+                padding: '16px',
+                color: '#fff',
+                fontSize: '0.9rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <div style={{ fontWeight: '700', color: 'var(--color-env)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sliders size={16} /> Eco-Calculation Engine
+                </div>
+                {settings.autoEmissionCalc ? (
+                  <div>
+                    {filteredFactors.find(f => f.id === erpForm.factorId) && erpForm.quantity ? (
+                      <span>
+                        Eco-Calculation: <strong style={{ color: 'var(--color-env)' }}>{parseFloat(erpForm.quantity).toLocaleString()}</strong> {filteredFactors.find(f => f.id === erpForm.factorId)?.unit} × <strong style={{ color: 'var(--color-env)' }}>{filteredFactors.find(f => f.id === erpForm.factorId)?.co2_per_unit}</strong> factor = <strong style={{ color: 'var(--color-env)', fontSize: '1.05rem' }}>{(parseFloat(erpForm.quantity) * filteredFactors.find(f => f.id === erpForm.factorId)?.co2_per_unit).toFixed(2)}</strong> kg CO₂e
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>Enter operation details to view live carbon footprint calculations.</span>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--text-secondary)' }}>
+                    Auto-Calculation is disabled. Please enter manual CO₂ equivalent calculation below.
+                  </div>
+                )}
+              </div>
+
+              {/* Manual entry field when auto calculate is off */}
+              {!settings.autoEmissionCalc && (
+                <div className="form-group">
+                  <label>Manual CO₂ equivalent (kg CO₂e)</label>
+                  <input 
+                    type="number"
+                    step="any"
+                    className="form-input"
+                    placeholder="Enter manual CO2 value"
+                    required
+                    value={erpForm.manualCo2}
+                    onChange={(e) => setErpForm(prev => ({ ...prev, manualCo2: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              <button type="submit" className="btn btn-primary" style={{ marginTop: '10px', width: '100%' }}>
+                Process & Log to Carbon Ledger
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Sub tab contents: 1. Environmental Goals */}
       {activeSubTab === 'goals' && (
