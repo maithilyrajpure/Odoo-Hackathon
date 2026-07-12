@@ -165,7 +165,11 @@ export const ESGDataProvider = ({ children }) => {
       setPolicyAcknowledgements(acks);
       setAudits(auds);
       setComplianceIssues(issues);
-      setUsersList(members);
+      const mockProfiles = [
+        { id: 'virtual-employee-1', org_id: orgId, name: 'Karan Shah', role: 'Employee', xp: 3910, points: 210, badges_unlocked: ['Green Beginner'], department: 'Manufacturing' },
+        { id: 'virtual-manager-1', org_id: orgId, name: 'S. Nair', role: 'Manager', xp: 5200, points: 600, badges_unlocked: ['Sustainability Champion'], department: 'Logistics' }
+      ];
+      setUsersList([...members, ...mockProfiles]);
       setNotifications(notifs);
 
       setSettings({
@@ -239,7 +243,11 @@ export const ESGDataProvider = ({ children }) => {
       setPolicyAcknowledgements(acks);
       setAudits(auds);
       setComplianceIssues(issues);
-      setUsersList(members);
+      const mockProfiles = [
+        { id: 'virtual-employee-1', org_id: orgId, name: 'Karan Shah', role: 'Employee', xp: 3910, points: 210, badges_unlocked: ['Green Beginner'], department: 'Manufacturing' },
+        { id: 'virtual-manager-1', org_id: orgId, name: 'S. Nair', role: 'Manager', xp: 5200, points: 600, badges_unlocked: ['Sustainability Champion'], department: 'Logistics' }
+      ];
+      setUsersList([...members, ...mockProfiles]);
       setNotifications(notifs);
     } catch (err) {
       console.error("Reload error:", err);
@@ -308,14 +316,7 @@ export const ESGDataProvider = ({ children }) => {
         { org_id: orgId, title: 'Recycle Challenge', category: 'Waste sorting', description: 'Properly categorize office waste.', xp: 80, difficulty: 'Easy', deadline: '2026-07-15' },
       ]);
 
-      // 10. Link profile to S. Nair (first manager)
-      // Since first user registers, let's create a couple of mock members
-      await supabase.from('profiles').insert([
-        { id: '00000000-0000-0000-0000-000000000002', org_id: orgId, name: 'Karan Shah', role: 'Employee', xp: 3910, points: 210, badges_unlocked: ['Green Beginner'] },
-        { id: '00000000-0000-0000-0000-000000000003', org_id: orgId, name: 'S. Nair', role: 'Manager', xp: 5200, points: 600, badges_unlocked: ['Sustainability Champion'] },
-      ]);
-
-      // 11. Initial Carbon logs
+      // 10. Initial Carbon logs
       await supabase.from('carbon_transactions').insert([
         { org_id: orgId, date: '2026-07-01', type: 'Fleet', quantity: 150, unit: 'Liters', emission_factor_name: 'Diesel fuel (Fleet)', co2_value: 402.0, department_id: dept2.id },
         { org_id: orgId, date: '2026-07-03', type: 'Purchase', quantity: 2400, unit: 'kWh', emission_factor_name: 'Grid Electricity', co2_value: 2040.0, department_id: dept1.id },
@@ -606,6 +607,24 @@ export const ESGDataProvider = ({ children }) => {
         proofUrl = proofFile; // fallback if text
       }
 
+      if (activeUser.id.startsWith('virtual-')) {
+        const mockPart = {
+          id: Date.now(),
+          org_id: activeUser.org_id,
+          employee_id: activeUser.id,
+          employee: activeUser.name,
+          activity_id: activityId,
+          activityName: activity.name,
+          proof_url: proofUrl,
+          points_earned: activity.points,
+          status: 'Joined',
+          date: new Date().toISOString().split('T')[0]
+        };
+        setEmployeeParticipations(prev => [mockPart, ...prev]);
+        await addNotification('social', `Submitted participation request for "${activity.name}".`);
+        return;
+      }
+
       const newParticipation = await socialService.joinCsrActivity(
         activeUser.org_id,
         activeUser.id,
@@ -617,7 +636,7 @@ export const ESGDataProvider = ({ children }) => {
       // Reload participations to get profiles join
       const updatedParts = await socialService.fetchEmployeeParticipations();
       setEmployeeParticipations(updatedParts);
-      addNotification('social', `Submitted participation request for "${activity.name}".`);
+      await addNotification('social', `Submitted participation request for "${activity.name}".`);
     } catch (err) {
       alert(`Join CSR Failed: ${err.message || err}`);
     }
@@ -630,6 +649,26 @@ export const ESGDataProvider = ({ children }) => {
 
     const status = approved ? 'Approved' : 'Rejected';
     try {
+      if (typeof participationId === 'number' || String(participationId).startsWith('virtual-')) {
+        setEmployeeParticipations(prev => prev.map(p => p.id === participationId ? { ...p, status } : p));
+        const emp = usersList.find(u => u.id === part.employee_id);
+        const empName = emp ? emp.name : (part.employee || 'Employee');
+
+        if (approved) {
+          await awardEmployeeXp(part.employee_id, part.points_earned);
+          if (settings.autoAwardBadges) {
+            const approvedCount = employeeParticipations.filter(p => p.employee_id === part.employee_id && p.status === 'Approved').length + 1;
+            if (approvedCount >= 3) {
+              await unlockEmployeeBadge(part.employee_id, 'Team Player', '🤝');
+            }
+          }
+          await addNotification('social', `Volunteer credit approved for ${empName}.`);
+        } else {
+          await addNotification('social', `Volunteer credit rejected for ${empName}.`);
+        }
+        return;
+      }
+
       await socialService.updateParticipationStatus(participationId, status);
       
       // Update local state
@@ -734,6 +773,25 @@ export const ESGDataProvider = ({ children }) => {
     if (!challenge) return;
 
     try {
+      if (activeUser.id.startsWith('virtual-')) {
+        const mockPart = {
+          id: Date.now(),
+          org_id: activeUser.org_id,
+          challenge_id: challengeId,
+          challengeTitle: challenge.title,
+          employee_id: activeUser.id,
+          employee: activeUser.name,
+          progress: 0,
+          proof_url: 'none',
+          status: 'Joined',
+          xp_awarded: 0,
+          date: new Date().toISOString().split('T')[0]
+        };
+        setChallengeParticipations(prev => [mockPart, ...prev]);
+        await addNotification('gamification', `Joined Challenge: "${challenge.title}"`);
+        return;
+      }
+
       await gamificationService.joinChallenge(
         activeUser.org_id,
         challengeId,
@@ -742,7 +800,7 @@ export const ESGDataProvider = ({ children }) => {
 
       const updatedParts = await gamificationService.fetchChallengeParticipations();
       setChallengeParticipations(updatedParts);
-      addNotification('gamification', `Joined Challenge: "${challenge.title}"`);
+      await addNotification('gamification', `Joined Challenge: "${challenge.title}"`);
     } catch (err) {
       alert(`Enroll Challenge Failed: ${err.message || err}`);
     }
@@ -756,10 +814,18 @@ export const ESGDataProvider = ({ children }) => {
         proofUrl = await socialService.uploadEvidenceFile(proofFile);
       }
 
+      if (typeof participationId === 'number' || String(participationId).startsWith('virtual-')) {
+        const isComplete = parseInt(progressVal) >= 100;
+        const status = isComplete ? 'Under Review' : 'Joined';
+        setChallengeParticipations(prev => prev.map(p => p.id === participationId ? { ...p, progress: parseInt(progressVal), proof_url: proofUrl, status } : p));
+        await addNotification('gamification', `Submitted progress parameters update.`);
+        return;
+      }
+
       await gamificationService.submitChallengeProgress(participationId, progressVal, proofUrl);
       const updatedParts = await gamificationService.fetchChallengeParticipations();
       setChallengeParticipations(updatedParts);
-      addNotification('gamification', `Submitted progress parameters update.`);
+      await addNotification('gamification', `Submitted progress parameters update.`);
     } catch (err) {
       alert(`Progress Log Failed: ${err.message || err}`);
     }
@@ -776,6 +842,26 @@ export const ESGDataProvider = ({ children }) => {
     const status = approved ? 'Approved' : 'Rejected';
     const xp = approved ? chal.xp : 0;
     try {
+      if (typeof participationId === 'number' || String(participationId).startsWith('virtual-')) {
+        setChallengeParticipations(prev => prev.map(p => p.id === participationId ? { ...p, status, xp_awarded: xp } : p));
+        const emp = usersList.find(u => u.id === part.employee_id);
+        const empName = emp ? emp.name : (part.employee || 'Employee');
+
+        if (approved) {
+          await awardEmployeeXp(part.employee_id, chal.xp);
+          if (settings.autoAwardBadges) {
+            const completedCount = challengeParticipations.filter(p => p.employee_id === part.employee_id && p.status === 'Approved').length + 1;
+            if (completedCount >= 1) {
+              await unlockEmployeeBadge(part.employee_id, 'Green Beginner', '🌱');
+            }
+          }
+          await addNotification('gamification', `Challenge approved for ${empName} (+${chal.xp} XP).`);
+        } else {
+          await addNotification('gamification', `Challenge submission rejected for ${empName}.`);
+        }
+        return;
+      }
+
       await gamificationService.updateChallengeParticipationStatus(participationId, status, xp);
       setChallengeParticipations(prev => prev.map(p => p.id === participationId ? { ...p, status, xp_awarded: xp } : p));
       
