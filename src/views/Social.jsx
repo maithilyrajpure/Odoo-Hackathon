@@ -22,7 +22,13 @@ export default function Social() {
 
   // Form states
   const [activityForm, setActivityForm] = useState({ name: '', description: '', points: '', evidenceRequired: false });
-  const [joinForm, setJoinForm] = useState({ employee: activeUser.name, proof: '' });
+  const [joinForm, setJoinForm] = useState({ employee: '', proof: '' });
+
+  React.useEffect(() => {
+    if (activeUser) {
+      setJoinForm(prev => ({ ...prev, employee: activeUser.name }));
+    }
+  }, [activeUser]);
 
   const onSubmitActivity = (e) => {
     e.preventDefault();

@@ -1362,3 +1362,87 @@ input:checked + .switch-slider:before {
   justify-content: flex-end;
   gap: 12px;
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  /* Hide all UI Chrome like sidebars, headers, action bars, settings panels */
+  #root > div > aside, 
+  #root > div > main > header,
+  .sidebar, 
+  .view-header,
+  .tabs-container, 
+  .action-bar, 
+  form, 
+  button, 
+  .modal-overlay,
+  select,
+  input,
+  .quick-actions-list,
+  .panel-header > span,
+  .esg-table th:last-child,
+  .esg-table td:last-child {
+    display: none !important;
+  }
+
+  #root > div {
+    display: block !important;
+  }
+
+  #root > div > main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Force printable preview to display on white background */
+  .print-report-preview {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .print-report-preview h2,
+  .print-report-preview h3,
+  .print-report-preview h4,
+  .print-report-preview div,
+  .print-report-preview span,
+  .print-report-preview strong,
+  .print-report-preview label,
+  .print-report-preview p {
+    color: #000000 !important;
+  }
+
+  .print-report-preview table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin-top: 10px !important;
+    color: #000000 !important;
+  }
+
+  .print-report-preview th {
+    background: #f3f4f6 !important;
+    color: #000000 !important;
+    border: 1px solid #d1d5db !important;
+    font-weight: 700 !important;
+    padding: 8px !important;
+    text-align: left !important;
+  }
+
+  .print-report-preview td {
+    border: 1px solid #d1d5db !important;
+    padding: 8px !important;
+    color: #374151 !important;
+  }
+
+  .print-report-preview div[style*="background"] {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+  }
+}

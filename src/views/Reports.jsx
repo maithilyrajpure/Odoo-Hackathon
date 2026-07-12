@@ -27,6 +27,12 @@ export default function Reports() {
 
   const [reportResults, setReportResults] = useState([]);
   const [reportRun, setReportRun] = useState(false);
+  const [sections, setSections] = useState({
+    summary: true,
+    environmental: true,
+    social: true,
+    governance: true
+  });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -328,14 +334,37 @@ export default function Reports() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginTop: '10px' }}>
+            {/* Report sections selector */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '15px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '600' }}>Select Sections to Include in PDF Report:</label>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '15px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer', color: '#fff' }}>
+                  <input type="checkbox" checked={sections.summary} onChange={() => setSections(p => ({ ...p, summary: !p.summary }))} />
+                  ESG Score Summary
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer', color: '#fff' }}>
+                  <input type="checkbox" checked={sections.environmental} onChange={() => setSections(p => ({ ...p, environmental: !p.environmental }))} />
+                  Carbon Ledger (Environmental)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer', color: '#fff' }}>
+                  <input type="checkbox" checked={sections.social} onChange={() => setSections(p => ({ ...p, social: !p.social }))} />
+                  CSR Participation (Social)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer', color: '#fff' }}>
+                  <input type="checkbox" checked={sections.governance} onChange={() => setSections(p => ({ ...p, governance: !p.governance }))} />
+                  Compliance & Audits (Governance)
+                </label>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
               <button className="btn btn-primary" onClick={handleRunReport}>
                 <Play size={16} /> Run Report
               </button>
               <button className="btn btn-secondary" onClick={handleExportCsv}>
                 <Download size={16} /> Export CSV
               </button>
-              <button className="btn btn-secondary" onClick={() => alert("PDF export requires standard printer layout rendering.")}>
+              <button className="btn btn-secondary" onClick={() => window.print()}>
                 Export PDF
               </button>
               <button className="btn btn-secondary" onClick={() => alert("Excel export is mapping as XML workbook.")}>
@@ -346,60 +375,151 @@ export default function Reports() {
 
           {/* Results section */}
           {reportRun && (
-            <div className="panel-card">
-              <div className="panel-header">
-                <div className="panel-title">Report Results ({reportResults.length} records found)</div>
+            <div className="panel-card print-report-preview" style={{ padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              <div style={{ borderBottom: '2px solid var(--color-env)', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#fff', margin: 0 }}>EcoSphere ESG Performance Disclosure</h2>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Generated: {new Date().toLocaleDateString()}</span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--color-env)', margin: 0 }}>Status: Audited</h3>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Dept: {filters.department} | Module: {filters.module}</span>
+                </div>
               </div>
 
-              <div className="table-container">
-                <table className="esg-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Module</th>
-                      <th>Category</th>
-                      <th>Details</th>
-                      <th>Impact / Score</th>
-                      <th>Department</th>
-                      <th>Status</th>
-                      <th>Owner / Entity</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reportResults.length === 0 ? (
-                      <tr>
-                        <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No records match your selected query parameters.</td>
-                      </tr>
-                    ) : (
-                      reportResults.map((r, idx) => (
-                        <tr key={idx}>
-                          <td>{r.date}</td>
-                          <td>
-                            <span className={`badge-pill ${
-                              r.module === 'Environmental' ? 'badge-approved' : 
-                              r.module === 'Social' ? 'badge-joined' : 'badge-underreview'
-                            }`}>
-                              {r.module}
-                            </span>
-                          </td>
-                          <td>{r.category}</td>
-                          <td style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.detail}</td>
-                          <td style={{ fontWeight: '700' }}>{r.impact}</td>
-                          <td>{r.department}</td>
-                          <td>
-                            <span className={`badge-pill ${
-                              r.status === 'Approved' || r.status === 'Active' || r.status === 'Resolved' ? 'badge-approved' : 'badge-pending'
-                            }`}>
-                              {r.status}
-                            </span>
-                          </td>
-                          <td>{r.entity}</td>
+              {/* SECTION: SUMMARY */}
+              {sections.summary && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px', color: '#fff', fontSize: '1.05rem', marginBottom: '12px' }}>Executive ESG Summary Overview</h3>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', margin: '12px 0' }}>
+                    <div style={{ flex: '1', minWidth: '120px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>Environmental Score</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-env)', marginTop: '4px' }}>82%</div>
+                    </div>
+                    <div style={{ flex: '1', minWidth: '120px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>Social Score</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-soc)', marginTop: '4px' }}>74%</div>
+                    </div>
+                    <div style={{ flex: '1', minWidth: '120px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>Governance Score</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-gov)', marginTop: '4px' }}>85%</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: ENVIRONMENTAL */}
+              {sections.environmental && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px', color: '#fff', fontSize: '1.05rem', marginBottom: '12px' }}>Carbon Accounting Ledger</h3>
+                  <div className="table-container">
+                    <table className="esg-table" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Category</th>
+                          <th>Details</th>
+                          <th>Impact</th>
+                          <th>Department</th>
+                          <th>Status</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody>
+                        {reportResults.filter(r => r.module === 'Environmental').length === 0 ? (
+                          <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No carbon records found.</td></tr>
+                        ) : (
+                          reportResults.filter(r => r.module === 'Environmental').map((r, idx) => (
+                            <tr key={idx}>
+                              <td>{r.date}</td>
+                              <td>{r.category}</td>
+                              <td>{r.detail}</td>
+                              <td style={{ color: 'var(--color-env)', fontWeight: '600' }}>{r.impact}</td>
+                              <td>{r.department}</td>
+                              <td>{r.status}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: SOCIAL */}
+              {sections.social && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px', color: '#fff', fontSize: '1.05rem', marginBottom: '12px' }}>CSR Engagement & Volunteer Campaigns</h3>
+                  <div className="table-container">
+                    <table className="esg-table" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Category</th>
+                          <th>Details</th>
+                          <th>Points</th>
+                          <th>Department</th>
+                          <th>Status</th>
+                          <th>Participant</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportResults.filter(r => r.module === 'Social').length === 0 ? (
+                          <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No volunteer actions found.</td></tr>
+                        ) : (
+                          reportResults.filter(r => r.module === 'Social').map((r, idx) => (
+                            <tr key={idx}>
+                              <td>{r.date}</td>
+                              <td>{r.category}</td>
+                              <td>{r.detail}</td>
+                              <td>{r.impact}</td>
+                              <td>{r.department}</td>
+                              <td>{r.status}</td>
+                              <td>{r.entity}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: GOVERNANCE */}
+              {sections.governance && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px', color: '#fff', fontSize: '1.05rem', marginBottom: '12px' }}>Compliance Audits & Tickets</h3>
+                  <div className="table-container">
+                    <table className="esg-table" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Category</th>
+                          <th>Details</th>
+                          <th>Status</th>
+                          <th>Department</th>
+                          <th>Owner</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportResults.filter(r => r.module === 'Governance').length === 0 ? (
+                          <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No compliance issues or policy agreements found.</td></tr>
+                        ) : (
+                          reportResults.filter(r => r.module === 'Governance').map((r, idx) => (
+                            <tr key={idx}>
+                              <td>{r.date}</td>
+                              <td>{r.category}</td>
+                              <td>{r.detail}</td>
+                              <td>{r.impact}</td>
+                              <td>{r.department}</td>
+                              <td>{r.entity}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
