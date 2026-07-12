@@ -107,12 +107,21 @@ const initialComplianceIssues = [
 ];
 
 const initialActiveUser = {
+  id: 'u1',
   name: 'Aditi Rao',
+  role: 'Employee',
   department: 'Manufacturing',
   xp: 4820,
   points: 380,
   badges: ['Green Beginner', 'Team Player'],
 };
+
+const initialUsersList = [
+  { id: 'u1', name: 'Aditi Rao', role: 'Employee', department: 'Manufacturing', xp: 4820, points: 380, badges: ['Green Beginner', 'Team Player'] },
+  { id: 'u2', name: 'S. Nair', role: 'Manager', department: 'Manufacturing', xp: 5200, points: 600, badges: ['Sustainability Champion'] },
+  { id: 'u3', name: 'Karan Shah', role: 'Employee', department: 'Logistics', xp: 3910, points: 210, badges: ['Green Beginner'] },
+  { id: 'u4', name: 'R. Iyer', role: 'Manager', department: 'Logistics', xp: 4100, points: 350, badges: ['Team Player'] },
+];
 
 export const ESGDataProvider = ({ children }) => {
   // Database States loaded from LocalStorage if they exist, else using mock seeds
@@ -133,6 +142,7 @@ export const ESGDataProvider = ({ children }) => {
   const [audits, setAudits] = useState(() => JSON.parse(localStorage.getItem('esg_audits')) || initialAudits);
   const [complianceIssues, setComplianceIssues] = useState(() => JSON.parse(localStorage.getItem('esg_complianceIssues')) || initialComplianceIssues);
   const [activeUser, setActiveUser] = useState(() => JSON.parse(localStorage.getItem('esg_activeUser')) || initialActiveUser);
+  const [usersList, setUsersList] = useState(() => JSON.parse(localStorage.getItem('esg_usersList')) || initialUsersList);
   const [notifications, setNotifications] = useState(() => JSON.parse(localStorage.getItem('esg_notifications')) || [
     { id: 1, type: 'info', message: 'Welcome to EcoSphere ESG Platform!', date: new Date().toLocaleDateString() }
   ]);
@@ -198,11 +208,23 @@ export const ESGDataProvider = ({ children }) => {
     localStorage.setItem('esg_activeUser', JSON.stringify(activeUser));
   }, [activeUser]);
   useEffect(() => {
+    localStorage.setItem('esg_usersList', JSON.stringify(usersList));
+  }, [usersList]);
+  useEffect(() => {
     localStorage.setItem('esg_settings', JSON.stringify(settings));
   }, [settings]);
   useEffect(() => {
     localStorage.setItem('esg_notifications', JSON.stringify(notifications));
   }, [notifications]);
+
+  // Handle switching active users
+  const switchUser = (userId) => {
+    const matchedUser = usersList.find(u => u.id === userId);
+    if (matchedUser) {
+      setActiveUser(matchedUser);
+      addNotification('info', `Switched active profile to ${matchedUser.name} (${matchedUser.role}).`);
+    }
+  };
 
   // Push system notification helper
   const addNotification = (type, message) => {
@@ -636,6 +658,7 @@ export const ESGDataProvider = ({ children }) => {
       audits, setAudits,
       complianceIssues, setComplianceIssues,
       activeUser, setActiveUser,
+      usersList, setUsersList,
       settings, setSettings,
       notifications, setNotifications,
 
@@ -660,7 +683,8 @@ export const ESGDataProvider = ({ children }) => {
       redeemReward,
       addDepartment,
       addNotification,
-      awardUserXp
+      awardUserXp,
+      switchUser
     }}>
       {children}
     </ESGDataContext.Provider>

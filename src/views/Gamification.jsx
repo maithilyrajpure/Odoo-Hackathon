@@ -125,18 +125,38 @@ export default function Gamification() {
 
           <div className="cards-grid">
             {challenges.map((c) => {
-              const hasJoined = challengeParticipations.some(p => p.challengeTitle === c.title && p.employee === activeUser.name);
+              const participation = challengeParticipations.find(p => p.challengeTitle === c.title && p.employee === activeUser.name);
+              const hasJoined = !!participation;
+              
+              // Determine status text and classes
+              let statusLabel = c.status;
+              let statusClass = c.status === 'Active' ? 'badge-approved' : 'badge-draft';
+
+              if (participation) {
+                if (participation.status === 'Joined') {
+                  statusLabel = `Ongoing (${participation.progress}%)`;
+                  statusClass = 'badge-pending';
+                } else if (participation.status === 'Under Review') {
+                  statusLabel = 'Under Review';
+                  statusClass = 'badge-pending';
+                } else if (participation.status === 'Approved') {
+                  statusLabel = 'Completed & Approved ✓';
+                  statusClass = 'badge-approved';
+                } else if (participation.status === 'Rejected') {
+                  statusLabel = 'Rejected / Retry';
+                  statusClass = 'badge-high';
+                }
+              }
+
               return (
-                <div key={c.id} className="info-card">
+                <div key={c.id} className="info-card" style={participation?.status === 'Approved' ? { borderColor: 'var(--color-env)' } : {}}>
                   <div className="info-card-header">
                     <div className="info-card-title">
                       <Star size={18} color="var(--color-accent)" />
                       {c.title}
                     </div>
-                    <span className={`badge-pill ${
-                      c.status === 'Active' ? 'badge-approved' : 'badge-draft'
-                    }`}>
-                      {c.status}
+                    <span className={`badge-pill ${statusClass}`}>
+                      {statusLabel}
                     </span>
                   </div>
                   <p className="info-card-desc">{c.description}</p>
@@ -150,11 +170,16 @@ export default function Gamification() {
                     <span style={{ fontWeight: '700', color: 'var(--color-accent)' }}>+{c.xp} XP / Points</span>
                     {c.status === 'Active' && (
                       <button 
-                        className={`btn btn-sm ${hasJoined ? 'btn-secondary' : 'btn-accent'}`}
-                        disabled={hasJoined}
+                        className={`btn btn-sm ${
+                          participation?.status === 'Approved' ? 'btn-secondary' : 
+                          hasJoined ? 'btn-secondary' : 'btn-accent'
+                        }`}
+                        disabled={hasJoined && participation?.status !== 'Rejected'}
                         onClick={() => joinChallenge(c.id)}
                       >
-                        {hasJoined ? 'Joined' : 'Join Challenge'}
+                        {participation?.status === 'Approved' ? 'Completed' : 
+                         participation?.status === 'Rejected' ? 'Re-enroll' :
+                         hasJoined ? 'Enrolled' : 'Join Challenge'}
                       </button>
                     )}
                   </div>
@@ -226,22 +251,26 @@ export default function Gamification() {
                       </td>
                       <td>
                         {p.status === 'Under Review' ? (
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button 
-                              className="btn btn-primary btn-sm" 
-                              onClick={() => approveChallengeParticipation(p.id, true)}
-                              style={{ padding: '4px 8px', borderRadius: '4px' }}
-                            >
-                              Approve
-                            </button>
-                            <button 
-                              className="btn btn-danger btn-sm" 
-                              onClick={() => approveChallengeParticipation(p.id, false)}
-                              style={{ padding: '4px 8px', borderRadius: '4px' }}
-                            >
-                              Reject
-                            </button>
-                          </div>
+                          activeUser.role === 'Manager' ? (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button 
+                                className="btn btn-primary btn-sm" 
+                                onClick={() => approveChallengeParticipation(p.id, true)}
+                                style={{ padding: '4px 8px', borderRadius: '4px' }}
+                              >
+                                Approve
+                              </button>
+                              <button 
+                                className="btn btn-danger btn-sm" 
+                                onClick={() => approveChallengeParticipation(p.id, false)}
+                                style={{ padding: '4px 8px', borderRadius: '4px' }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="badge-pill badge-pending" style={{ fontSize: '0.7rem' }}>Pending Manager Switch</span>
+                          )
                         ) : (
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.status === 'Approved' ? 'XP Awarded' : 'Ongoing'}</span>
                         )}

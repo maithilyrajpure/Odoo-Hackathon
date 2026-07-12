@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 export default function Sidebar({ currentView, setCurrentView }) {
-  const { activeUser, notifications } = useContext(ESGDataContext);
+  const { activeUser, notifications, usersList, switchUser } = useContext(ESGDataContext);
   const [showNotif, setShowNotif] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -139,6 +139,32 @@ export default function Sidebar({ currentView, setCurrentView }) {
           <div className="stat-item points">
             PTS: <span>{activeUser.points}</span>
           </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', marginTop: '4px' }}>
+          <label style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Profile Switcher</label>
+          <select 
+            value={activeUser.id} 
+            onChange={(e) => switchUser(e.target.value)}
+            style={{
+              background: 'rgba(0,0,0,0.3)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              padding: '4px 6px',
+              color: '#fff',
+              fontSize: '0.72rem',
+              outline: 'none',
+              cursor: 'pointer',
+              width: '100%',
+              fontFamily: 'var(--font-family)'
+            }}
+          >
+            {usersList.map(u => (
+              <option key={u.id} value={u.id} style={{ background: '#0c0f0d', color: '#fff' }}>
+                {u.name} ({u.role})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </aside>

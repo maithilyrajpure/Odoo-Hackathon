@@ -159,22 +159,26 @@ export default function Social() {
                       </td>
                       <td>
                         {p.status === 'Pending' ? (
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button 
-                              className="btn btn-primary btn-sm" 
-                              onClick={() => approveParticipation(p.id, true)}
-                              style={{ padding: '4px 8px', borderRadius: '4px' }}
-                            >
-                              <Check size={14} /> Approve
-                            </button>
-                            <button 
-                              className="btn btn-danger btn-sm" 
-                              onClick={() => approveParticipation(p.id, false)}
-                              style={{ padding: '4px 8px', borderRadius: '4px' }}
-                            >
-                              <X size={14} /> Reject
-                            </button>
-                          </div>
+                          activeUser.role === 'Manager' ? (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button 
+                                className="btn btn-primary btn-sm" 
+                                onClick={() => approveParticipation(p.id, true)}
+                                style={{ padding: '4px 8px', borderRadius: '4px' }}
+                              >
+                                <Check size={14} /> Approve
+                              </button>
+                              <button 
+                                className="btn btn-danger btn-sm" 
+                                onClick={() => approveParticipation(p.id, false)}
+                                style={{ padding: '4px 8px', borderRadius: '4px' }}
+                              >
+                                <X size={14} /> Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="badge-pill badge-pending" style={{ fontSize: '0.7rem' }}>Pending Manager Switch</span>
+                          )
                         ) : (
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Closed</span>
                         )}
