@@ -49,11 +49,11 @@ npm install
 ```
 
 ### 2. Configure Environment Credentials
-Ensure your root directory contains a `.env` file containing:
-```env
-VITE_SUPABASE_URL=https://vhxnldfrrsbmebjxrrct.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoeG5sZGZycnNibWVianhycmN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MjYwODcsImV4cCI6MjA5OTQwMjA4N30.dOWTeNoqFsYnJ4ZfnCAip4hwDzNzQTnkaOYmgof7qYk
+Create a `.env` file in the root directory by copying the example environment file:
+```bash
+cp .env.example .env
 ```
+*(The pre-configured hackathon database keys are already present inside `.env.example` for instant setup.)*
 
 ### 3. Start Development Server
 ```bash
