@@ -52,14 +52,24 @@ function AppContent() {
     );
   }
 
-  // Render Login view if user is not authenticated on Supabase
-  if (!activeUser) {
-    return <Login onLoginSuccess={() => setCurrentView('landing')} />;
+  // Render Landing view first
+  if (currentView === 'landing') {
+    return (
+      <Landing 
+        onLaunch={() => {
+          if (activeUser) {
+            setCurrentView('dashboard');
+          } else {
+            setCurrentView('login');
+          }
+        }} 
+      />
+    );
   }
 
-  // Render Landing view
-  if (currentView === 'landing') {
-    return <Landing onLaunch={() => setCurrentView('dashboard')} />;
+  // Render Login view if user is not authenticated on Supabase
+  if (!activeUser) {
+    return <Login onLoginSuccess={() => setCurrentView('dashboard')} />;
   }
 
   return (
