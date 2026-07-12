@@ -2,6 +2,7 @@
 
 EcoSphere is a real-time, circular ESG (Environmental, Social, Governance) platform designed for the **Odoo Hackathon**. Connected to a Supabase backend server, it bridges the gap between raw business operations and corporate sustainability auditing by translating actions into a live circular ESG ledger.
 
+Deployed link:https://odoo-hackathon-pi.vercel.app
 ---
 
 ## 🚀 Key Features & Modules
