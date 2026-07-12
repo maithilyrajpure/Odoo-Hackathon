@@ -15,7 +15,7 @@ export default function Gamification() {
     approveChallengeParticipation,
     redeemReward,
     addChallenge,
-    setChallenges
+    updateChallengeStatus
   } = useContext(ESGDataContext);
 
   const [activeSubTab, setActiveSubTab] = useState('challenges'); // Default matches excalidraw: Challenges
@@ -44,21 +44,17 @@ export default function Gamification() {
     rank: idx + 1
   }));
 
-  const onSubmitChallenge = (e) => {
+  const onSubmitChallenge = async (e) => {
     e.preventDefault();
     if (!challengeForm.title || !challengeForm.xp || !challengeForm.deadline) return;
-    const newChal = {
-      id: String(Date.now()),
-      title: challengeForm.title,
-      category: challengeForm.category,
-      description: challengeForm.description,
-      xp: parseInt(challengeForm.xp),
-      difficulty: challengeForm.difficulty,
-      evidenceRequired: true,
-      deadline: challengeForm.deadline,
-      status: 'Active'
-    };
-    setChallenges(prev => [...prev, newChal]);
+    await addChallenge(
+      challengeForm.title,
+      challengeForm.category,
+      challengeForm.description,
+      challengeForm.xp,
+      challengeForm.difficulty,
+      challengeForm.deadline
+    );
     setShowAddChallenge(false);
     setChallengeForm({ title: '', category: 'Carbon reduction', description: '', xp: '', difficulty: 'Medium', deadline: '' });
   };
@@ -124,68 +120,100 @@ export default function Gamification() {
           </div>
 
           <div className="cards-grid">
-            {challenges.map((c) => {
-              const participation = challengeParticipations.find(p => p.challengeTitle === c.title && p.employee === activeUser.name);
-              const hasJoined = !!participation;
-              
-              // Determine status text and classes
-              let statusLabel = c.status;
-              let statusClass = c.status === 'Active' ? 'badge-approved' : 'badge-draft';
+            {challenges
+              .filter(c => c.status !== 'Draft' || activeUser?.role === 'Manager')
+              .map((c) => {
+                const participation = challengeParticipations.find(p => p.challenge_id === c.id && p.employee_id === activeUser?.id);
+                const hasJoined = !!participation;
+                
+                // Determine status text and classes
+                let statusLabel = c.status;
+                let statusClass = c.status === 'Active' ? 'badge-approved' : c.status === 'Draft' ? 'badge-draft' : 'badge-high';
 
-              if (participation) {
-                if (participation.status === 'Joined') {
-                  statusLabel = `Ongoing (${participation.progress}%)`;
-                  statusClass = 'badge-pending';
-                } else if (participation.status === 'Under Review') {
-                  statusLabel = 'Under Review';
-                  statusClass = 'badge-pending';
-                } else if (participation.status === 'Approved') {
-                  statusLabel = 'Completed & Approved ✓';
-                  statusClass = 'badge-approved';
-                } else if (participation.status === 'Rejected') {
-                  statusLabel = 'Rejected / Retry';
-                  statusClass = 'badge-high';
+                if (participation) {
+                  if (participation.status === 'Joined') {
+                    statusLabel = `Ongoing (${participation.progress}%)`;
+                    statusClass = 'badge-pending';
+                  } else if (participation.status === 'Under Review') {
+                    statusLabel = 'Under Review';
+                    statusClass = 'badge-pending';
+                  } else if (participation.status === 'Approved') {
+                    statusLabel = 'Completed & Approved ✓';
+                    statusClass = 'badge-approved';
+                  } else if (participation.status === 'Rejected') {
+                    statusLabel = 'Rejected / Retry';
+                    statusClass = 'badge-high';
+                  }
                 }
-              }
 
-              return (
-                <div key={c.id} className="info-card" style={participation?.status === 'Approved' ? { borderColor: 'var(--color-env)' } : {}}>
-                  <div className="info-card-header">
-                    <div className="info-card-title">
-                      <Star size={18} color="var(--color-accent)" />
-                      {c.title}
+                return (
+                  <div key={c.id} className="info-card" style={participation?.status === 'Approved' ? { borderColor: 'var(--color-env)' } : {}}>
+                    <div className="info-card-header">
+                      <div className="info-card-title">
+                        <Star size={18} color="var(--color-accent)" />
+                        {c.title}
+                      </div>
+                      <span className={`badge-pill ${statusClass}`}>
+                        {statusLabel}
+                      </span>
                     </div>
-                    <span className={`badge-pill ${statusClass}`}>
-                      {statusLabel}
-                    </span>
-                  </div>
-                  <p className="info-card-desc">{c.description}</p>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <span>Difficulty: <strong style={{ color: '#fff' }}>{c.difficulty}</strong></span>
-                    <span>Deadline: <strong style={{ color: '#fff' }}>{c.deadline}</strong></span>
-                  </div>
+                    <p className="info-card-desc">{c.description}</p>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <span>Difficulty: <strong style={{ color: '#fff' }}>{c.difficulty}</strong></span>
+                      <span>Deadline: <strong style={{ color: '#fff' }}>{c.deadline}</strong></span>
+                    </div>
 
-                  <div className="info-card-meta">
-                    <span style={{ fontWeight: '700', color: 'var(--color-accent)' }}>+{c.xp} XP / Points</span>
-                    {c.status === 'Active' && (
-                      <button 
-                        className={`btn btn-sm ${
-                          participation?.status === 'Approved' ? 'btn-secondary' : 
-                          hasJoined ? 'btn-secondary' : 'btn-accent'
-                        }`}
-                        disabled={hasJoined && participation?.status !== 'Rejected'}
-                        onClick={() => joinChallenge(c.id)}
-                      >
-                        {participation?.status === 'Approved' ? 'Completed' : 
-                         participation?.status === 'Rejected' ? 'Re-enroll' :
-                         hasJoined ? 'Enrolled' : 'Join Challenge'}
-                      </button>
-                    )}
+                    <div className="info-card-meta" style={{ gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: '700', color: 'var(--color-accent)' }}>+{c.xp} XP / Points</span>
+                      
+                      {/* Employee Actions */}
+                      {activeUser?.role === 'Employee' && c.status === 'Active' && (
+                        <button 
+                          className={`btn btn-sm ${
+                            participation?.status === 'Approved' ? 'btn-secondary' : 
+                            hasJoined ? 'btn-secondary' : 'btn-accent'
+                          }`}
+                          disabled={hasJoined && participation?.status !== 'Rejected'}
+                          onClick={() => joinChallenge(c.id)}
+                        >
+                          {participation?.status === 'Approved' ? 'Completed' : 
+                           participation?.status === 'Rejected' ? 'Re-enroll' :
+                           hasJoined ? 'Enrolled' : 'Join Challenge'}
+                        </button>
+                      )}
+
+                      {/* Manager Actions */}
+                      {activeUser?.role === 'Manager' && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {c.status === 'Draft' && (
+                            <button 
+                              className="btn btn-sm btn-accent"
+                              onClick={() => updateChallengeStatus(c.id, 'Active')}
+                            >
+                              Publish
+                            </button>
+                          )}
+                          {c.status === 'Active' && !hasJoined && (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', alignSelf: 'center' }}>Active</span>
+                          )}
+                          {c.status !== 'Archived' && (
+                            <button 
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => updateChallengeStatus(c.id, 'Archived')}
+                            >
+                              Archive
+                            </button>
+                          )}
+                          {c.status === 'Archived' && (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', alignSelf: 'center' }}>Archived</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
       )}

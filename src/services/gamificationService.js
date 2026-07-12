@@ -120,8 +120,20 @@ export const gamificationService = {
         difficulty,
         evidence_required: true,
         deadline,
-        status: 'Active'
+        status: 'Draft'
       })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async updateChallengeStatus(challengeId, status) {
+    const { data, error } = await supabase
+      .from('challenges')
+      .update({ status })
+      .eq('id', challengeId)
       .select()
       .single();
 

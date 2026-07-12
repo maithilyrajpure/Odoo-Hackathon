@@ -312,6 +312,44 @@ export default function Governance() {
         </div>
       )}
 
+      {/* Auditor Signature Timeline */}
+      <div className="panel-card" style={{ marginTop: '24px' }}>
+        <div className="panel-header">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FileText size={18} color="var(--color-gov)" />
+            Auditor Signature Timeline
+          </div>
+        </div>
+        <div style={{ padding: '10px 0' }}>
+          {policyAcknowledgements.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No policy signatures recorded yet.</p>
+          ) : (
+            <div style={{ position: 'relative', paddingLeft: '20px', borderLeft: '2px solid rgba(168, 85, 247, 0.3)', margin: '10px 0 10px 10px' }}>
+              {[...policyAcknowledgements].reverse().map((ack) => {
+                const ts = ack.created_at ? new Date(ack.created_at).toLocaleString() : `${ack.date} 09:00:00`;
+                return (
+                  <div key={ack.id} style={{ position: 'relative', marginBottom: '16px' }}>
+                    <div style={{ 
+                      position: 'absolute', 
+                      left: '-26px', 
+                      top: '4px', 
+                      width: '10px', 
+                      height: '10px', 
+                      borderRadius: '50%', 
+                      background: 'var(--color-gov)',
+                      boxShadow: '0 0 8px var(--color-gov)'
+                    }}></div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: '#fff' }}>{ack.employee}</strong> signed <em style={{ color: 'var(--color-gov)', fontStyle: 'normal', fontWeight: '600' }}>{ack.policyTitle}</em> at <span style={{ fontFamily: 'monospace', color: 'var(--color-soc)' }}>{ts}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Modal: Policy Detailed view & Acknowledge */}
       {selectedPolicy && (
         <div className="modal-overlay">
